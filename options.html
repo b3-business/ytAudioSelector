@@ -9,11 +9,24 @@
 
 <body>
   <h1>Youtube AudioTrack Language Selector</h1>
-  <h3>Your Selection</h3>
-  <div id="selectedLanguages"></div>
-  <h3>Select audio track language to add to your list</h1>
-    <select id="addLanguage"></select>
-    <button type="button">Add Language</button>
+  <h3>Strategies</h3>
+  <span>The extension will match the following order:</span>
+  <ol>
+    <li>One of your prefered languages matches original audio track</li>
+    <li>The first matched prefered language will be used.</li>
+    <li>Original audio track will be used if no prefered language matches</li>
+  </ol>
+  <span>Otherwise no action is taken.</span>
+  <h3>Prefered languages</h3>
+  <div>
+    <ol id="selectedLanguages">
+      <!--will be filled by options.js-->
+    </ol>
+  </div>
+  <h3>Select audio track language to add to your list</h3>
+  <select id="addLanguage"></select>
+  <button type="button">Add Language</button>
 </body>
 <script src="options.js"></script>
+
 </html>
