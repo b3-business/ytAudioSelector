@@ -1,14 +1,30 @@
 console.log("Audio Selector Script Loaded");
 
 // load the preferences from the local storage
-const preferedLanguages =
-  JSON.parse(localStorage.getItem("preferedLanguages")) || [];
+let preferedLanguages = [];
 
 function isOriginalAudioTrack(language) {
   return language.includes("original");
 }
 
-function main() {
+async function main() {
+  const storage = await chrome.storage.local.get();
+  if (Object.keys(storage).length === 0) {
+    preferedLanguages = [];
+  }
+  else {
+    preferedLanguages = storage.selectedLanguages;
+  }
+
+  // get the settings button
+  let settingsButton = document.querySelector("#movie_player > div.ytp-chrome-bottom > div.ytp-chrome-controls > div.ytp-right-controls > button.ytp-button.ytp-settings-button.ytp-hd-quality-badge")
+  if (!settingsButton) {
+    console.log("No Settings Button Found");
+    return;
+  }
+
+  settingsButton.click();
+
   let settingsAudioTrackElement = document.querySelectorAll(
     "#ytp-id-18 > div > div > div.ytp-menuitem.ytp-audio-menu-item"
   );
@@ -32,6 +48,7 @@ function main() {
 
   if (audioTrackOptions.length < 1) {
     console.log("No Audio Track Options Found");
+    settingsButton.click(); // close the settings
     return;
   }
   const originalAudioTrack = audioTrackOptions.find((e) =>
@@ -48,7 +65,8 @@ function main() {
         console.log(`Selecting ${lang} Audio Track`);
         audioTrackOption.element.click();
       }
-      break;
+      settingsButton.click(); // close the settings
+      return;
     }
     // original track is not a prefered language, select the first prefered language. - Strategy 2
     // remember matched language
@@ -73,6 +91,8 @@ function main() {
       originalAudioTrack.element.click();
     }
   }
+
+  settingsButton.click(); // close the settings
 }
 
 try {
