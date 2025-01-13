@@ -31,6 +31,7 @@ async function main() {
 
   if (settingsAudioTrackElement.length < 1) {
     console.log("No Audio Track Element Found");
+    settingsButton.click(); // close the settings
     return;
   }
 
