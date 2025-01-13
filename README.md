@@ -1,4 +1,4 @@
-# Youtube React Watch
+# Youtube Audio Selector
 
 Youtube for some reason sometimes selects an audio track that you may not want. 
 This extension allows you to predefine languages, which will be selected automatically when you open a video.
