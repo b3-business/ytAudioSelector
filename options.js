@@ -66,7 +66,27 @@ function fillSelectedLanguages() {
     downButton.addEventListener("click", moveLanguageDown);
     li.appendChild(downButton);
     selectedLanguagesList.appendChild(li);
+
+    const removeButton = document.createElement("button");
+    removeButton.textContent = "X";
+    removeButton.addEventListener("click", removeLanguage);
+    li.appendChild(removeButton);
   });
+}
+
+function removeLanguage(e) {
+  e.preventDefault();
+  const target = e.target;
+  if (!target || target.parentElement.tagName !== "LI") {
+    return;
+  }
+
+  const index = parseInt(target.parentElement.getAttribute("data-index"));
+  selectedLanguages.splice(index, 1);
+  console.debug(selectedLanguages);
+  fillOptions();
+  fillSelectedLanguages();
+  saveSelectedLanguages();
 }
 
 function moveLanguageUp(e) {
