@@ -6,7 +6,7 @@ This extension allows you to predefine languages, which will be selected automat
 ## Strategy
 
 If one of the predefined languages is the original audio track of the video, it will be selected.
-If not, the first matching predefined language will be selected.
+If not, the first matching predefined language will be selected. (in the order of the predefined languages)
 If there is no predefined language or none of the languages match, the extension will still select the "original" audio track, if not already selected.
 
 ## Example
