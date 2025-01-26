@@ -14,7 +14,7 @@ async function saveSelectedLanguages() {
 }
 
 window.addEventListener("message", (event) => {
-  console.log("Message received in storage proxy", event);
+  //console.log("Message received in storage proxy", event);
   switch (event.data.type) {
     case recievingMessageData.SET_PREFERRED_LANGUAGES:
       selectedLanguages = event.data.data;
@@ -22,12 +22,16 @@ window.addEventListener("message", (event) => {
       break;
     case recievingMessageData.GET_PREFERRED_LANGUAGES:
       window.postMessage(
-        { type: returnMessageData.PREFERRED_LANGUAGES, data: selectedLanguages },
+        {
+          type: returnMessageData.PREFERRED_LANGUAGES,
+          data: selectedLanguages,
+        },
         "/"
       );
       break;
-    default:
-      console.log("Unknown message type, ignoring", event);
+    default: {
+      //console.log("Unknown message type, ignoring", event);
+    }
   }
 });
 

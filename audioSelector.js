@@ -27,7 +27,7 @@ const youtubeAudioSelectorExtension = {
       if (loadingAttempts > 20) {
         console.log("Preferred languages not loaded within 2 seconds");
         return;
-      }      
+      }
       loadingAttempts++;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
@@ -37,7 +37,7 @@ const youtubeAudioSelectorExtension = {
       console.log("No preferred languages found");
       return;
     }
-  
+
     // get the settings button
     let settingsButton = document.querySelector(
       "#movie_player > div.ytp-chrome-bottom > div.ytp-chrome-controls > div.ytp-right-controls > button.ytp-button.ytp-settings-button.ytp-hd-quality-badge"
@@ -46,35 +46,37 @@ const youtubeAudioSelectorExtension = {
       console.log("No settings button found");
       return;
     }
-  
+
     settingsButton.click();
-  
+
     let settingsAudioTrackElement = document.querySelectorAll(
       "#ytp-id-18 > div > div > div.ytp-menuitem.ytp-audio-menu-item"
     );
-  
+
     if (settingsAudioTrackElement.length < 1) {
       console.log("No audio track element found");
       settingsButton.click(); // close the settings
       return;
     }
-  
+
     settingsAudioTrackElement[0].click();
-  
+
     let audioTrackOptions = this.readAudioTrackOptions();
     // Sometimes the initial menu items are still loaded.
     // in that case retry after 0.1 seconds. This is absolutely not clean in any way.
     // until I find a way to actually use the "youtube player context" to get the audio tracks.
     // also, there is absolutely no way to distinguish between "normal menu item" and "audio menu item", they use the same css selector.
     while (
-      audioTrackOptions.some((e) => e.lang.toLowerCase().includes("audio track"))
+      audioTrackOptions.some((e) =>
+        e.lang.toLowerCase().includes("audio track")
+      )
     ) {
       await new Promise((resolve) => setTimeout(resolve, 100));
       audioTrackOptions = this.readAudioTrackOptions();
     }
-  
+
     console.debug("Debug: audio track options", audioTrackOptions);
-  
+
     if (audioTrackOptions.length < 1) {
       console.log("No audio track options found");
       settingsButton.click(); // close the settings
@@ -83,11 +85,11 @@ const youtubeAudioSelectorExtension = {
     const originalAudioTrack = audioTrackOptions.find((e) =>
       this.isOriginalAudioTrack(e.lang)
     );
-  
+
     console.log("original audio track", originalAudioTrack);
-  
+
     const matchedLang = [];
-  
+
     for (let audioTrackOption of audioTrackOptions) {
       const lang = audioTrackOption.lang;
       // original track is a preferred language, select it. - Strategy 1
@@ -110,14 +112,14 @@ const youtubeAudioSelectorExtension = {
         matchedLang.push(audioTrackOption);
       }
     }
-  
+
     // sort the matched languages by the order of the preferred languages
     matchedLang.sort(
       (a, b) =>
         preferredLanguages.indexOf(a.lang) - preferredLanguages.indexOf(b.lang)
     );
     console.debug("Matched Languages", matchedLang);
-  
+
     // select the first matched preferred language
     if (matchedLang.length > 0) {
       const firstMatchedLang = matchedLang[0];
@@ -130,7 +132,7 @@ const youtubeAudioSelectorExtension = {
       }
       return;
     }
-  
+
     // no preferred language found, select the original track - Strategy 3
     if (!matchedLang.length && originalAudioTrack) {
       console.log(
@@ -140,24 +142,27 @@ const youtubeAudioSelectorExtension = {
         originalAudioTrack.element.click();
       }
     }
-  
+
     settingsButton.click(); // close the settings
   },
   getPreferredLanguages() {
-
     window.addEventListener("message", (event) => {
-      console.log("Message received in storage proxy", event);
+      // this is a workaround. The content script using "world: main" is not able to access the chrome storage directly.
+      // thus we use another content script with the default "world: isolated" to access the chrome storage and send the data to the main content script.
+      // FIXME: this is not clean and quite slow.
+      //console.log("Message received in storage proxy", event);
       switch (event.data.type) {
         case "preferredLanguages":
           this.preferredLanguages = event.data.data;
           this.preferredLanguagesLoaded = true;
           break;
-        default:
-          console.log("Unknown message type, ignoring", event);
+        default: {
+          //console.log("Unknown message type, ignoring", event);
+        }
       }
     });
     window.postMessage({ type: "getPreferredLanguages" }, "/");
-  }
+  },
 };
 
 youtubeAudioSelectorExtension.getPreferredLanguages();

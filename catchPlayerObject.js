@@ -1,21 +1,29 @@
 console.log("injecting script to catch player object");
 
-Object.defineProperty(window, '_yt_player', {
-  set: function(obj) {
-    console.log("_yt_player", obj);
+Object.defineProperty(window, "_yt_player", {
+  set: function (obj) {
+    console.log("setter _yt_player", {...obj});
+    if (Object.keys(obj).length === 0) {
+      console.log("empty object, blocking");
+      return;
+    }
     this._hooked_yt_player = obj;
   },
-  get: function() {
+  get: function () {
+    console.log("getter _yt_player");
     return this._hooked_yt_player;
-  }
+  },
 });
 
-const _test_yt_player = {
-  set b(obj) {
-    console.log("b", obj);
-    this._hooked_b = obj;
+window._yt_player = {
+  set O(obj) {
+    const o = {...obj};
+    if (Object.keys(o).length > 0) {
+      console.log("O", {...obj});
+    }
+    this._hooked_O = obj;
   },
-  get b() {
-    return this._hooked_b;
-  }
+  get O() {
+    return this._hooked_O;
+  },
 };
