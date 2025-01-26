@@ -27,7 +27,7 @@ If the video had no English audio track and the original audio track would be Fr
 
 ## How to use 
 * Add Extension from the Chrome Web Store
-* Open the extension Popup (or the options page) to select your prefered audio languages.
+* Open the extension Popup (or the options page) to select your preferred audio languages.
 * Move or remove any languages you dont want. 
 
 
