@@ -35,7 +35,16 @@ If the video had no English audio track and the original audio track would be Fr
 
 Currently the extension tries to find the settings button and the audio track button by their class names.
 
-It would be better to actually get the audio options via the actual player api, but as "base.js" is minified, I am not sure how to do that. 
+Access to the youtube player API can be found at `document.querySelector("#movie_player")`.
+This includes most functions. 
+
+However some further background information is missing from this API. 
+For example, the audioTracks via `document.querySelector("#movie_player").getAvailableAudioTracks()` are not accessable when using the /shorts/VIDEO_ID player. 
+
+Using the "./catchPlayerObject.js" script, we can catch the full player object, that is being created.
+This object is still minified though, so its hard to actually find or use anything.
+
+If possible, using this player object to force the audio track would be nice. 
 
 ## Screenshots
 
