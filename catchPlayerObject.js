@@ -15,15 +15,27 @@ Object.defineProperty(window, "_yt_player", {
   },
 });
 
-window._yt_player = {
-  set O(obj) {
-    const o = {...obj};
-    if (Object.keys(o).length > 0) {
-      console.log("O", {...obj});
+//pass non empty object to _yt_player because empty object is blocked, so it will not be set
+window._yt_player = new Proxy({
+  _proxy:true,
+}, {
+  set: function (target, property, value) {   
+    if (typeof value === "function" && value.length === 4) {
+      console.log("Function has 4 args, potential function to hook", property);
+      target[property] = new Proxy(value, {
+        construct: function (target, args) {
+          const instance = new target(...args);
+          if (Object.keys(target).includes("create")) {
+            console.log("Youtube Player instance creator hooked", instance);
+            window._hooked_yt_player_instance = instance; 
+          }
+          return instance;
+        }
+      });
+      return true;
     }
-    this._hooked_O = obj;
-  },
-  get O() {
-    return this._hooked_O;
-  },
-};
+    
+    target[property] = value;
+    return true;
+  }
+});
