@@ -1,27 +1,16 @@
 {
   "manifest_version": 3,
   "name": "YouTube Audio Selector",
-  "version": "0.1",
+  "version": "0.2.0",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
-  "permissions": [
-    "storage",
-    "scripting"
-  ],
+  "permissions": ["storage", "scripting"],
+  "externally_connectable": {
+    "matches": ["https://www.youtube.com/*"]
+  },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/watch*"],
-      "js": ["storageProxy.js"],
-      "run_at": "document_end",
-      "world": "ISOLATED"
-    },
-    {
-      "matches": ["https://www.youtube.com/watch*"],
-      "js": ["audioSelector.js"],
-      "world": "MAIN"
-    },
-    {
-      "matches": ["https://www.youtube.com/watch*"],
-      "js": ["catchPlayerObject.js"],
+      "matches": ["https://www.youtube.com/watch*", "https://www.youtube.com/embed/*", "https://www.youtube.com/shorts/*"],
+      "js": ["setPreferredLanguage.js"],
       "run_at": "document_start",
       "world": "MAIN"
     }
@@ -29,5 +18,8 @@
   "options_page": "options.html",
   "action": {
     "default_popup": "options.html"
-    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
 }

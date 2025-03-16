@@ -38,6 +38,14 @@ Currently the extension tries to find the settings button and the audio track bu
 Access to the youtube player API can be found at `document.querySelector("#movie_player")`.
 This includes most functions. 
 
+Basic data can be found at "window.ytcfg" and "window.ytInitialPlayerResponse".
+ytInitialPlayerResponse contains the video data, including the audio tracks.
+
+```js
+window.ytInitialPlayerResponse.captions.playerCaptionsTracklistRenderer.audioTracks
+window.ytInitialPlayerResponse.streamingData.adaptiveFormats.filter(format => format.mimeType.includes("audio"))
+```
+
 However some further background information is missing from this API. 
 For example, the audioTracks via `document.querySelector("#movie_player").getAvailableAudioTracks()` are not accessable when using the /shorts/VIDEO_ID player. 
 

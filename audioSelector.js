@@ -1,4 +1,4 @@
-console.log(window._yt_player);
+// legacy - unused
 
 console.log("Audio Selector Script Loaded");
 
@@ -146,7 +146,8 @@ const youtubeAudioSelectorExtension = {
     settingsButton.click(); // close the settings
   },
   getPreferredLanguages() {
-    window.addEventListener("message", (event) => {
+
+    const receivePreferredLanguages = (event) => {
       // this is a workaround. The content script using "world: main" is not able to access the chrome storage directly.
       // thus we use another content script with the default "world: isolated" to access the chrome storage and send the data to the main content script.
       // FIXME: this is not clean and quite slow.
@@ -160,7 +161,8 @@ const youtubeAudioSelectorExtension = {
           //console.log("Unknown message type, ignoring", event);
         }
       }
-    });
+    };
+    window.addEventListener("message", receivePreferredLanguages);
     window.postMessage({ type: "getPreferredLanguages" }, "/");
   },
 };
