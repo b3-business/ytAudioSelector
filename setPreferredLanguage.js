@@ -8,10 +8,8 @@ const _audioSelector_selectAudioTrack = function (audioTracks) {
   const applyLanguage = (lang) => {
     audioTracks.forEach((audioTrackOption) => {
       if (audioTrackOption.audioTrack.displayName === lang) {
-        console.log(`Set true`);
         audioTrackOption.audioTrack.audioIsDefault = true;
       } else {
-        console.log(`Set false`);
         audioTrackOption.audioTrack.audioIsDefault = false;
       }
     });
