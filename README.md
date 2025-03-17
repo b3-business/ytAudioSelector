@@ -31,7 +31,18 @@ If the video had no English audio track and the original audio track would be Fr
 * Move or remove any languages you dont want. 
 
 
-## possible improvements
+## How it works
+
+This extension hooks the "ytInitialPlayerResponse" object, which contains the video data, including the audio tracks for the first video that is loaded.
+Since we hooked this object, we can intercept the setter and change the `audioTrack.audioIsDefault` property to true for the preferred languages,
+based on the strategy described above.
+
+For the following videos (when accessing a new video from recommendations or in shorts), the extension hooks the fetch method, to intercept the loading of the video data. From there on it will again change the `audioTrack.audioIsDefault` property to true for the preferred languages.
+
+The player initializes the video with the first audio track that has the `audioIsDefault` property set to true.
+This extension overrides this property to select the preferred audio track instead.
+
+## unused ideas
 
 Currently the extension tries to find the settings button and the audio track button by their class names.
 
