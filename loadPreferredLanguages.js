@@ -23,10 +23,6 @@ async function loadPreferredLanguages() {
     "/"
   );
   console.log("PostMessage sent");
-  (async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    console.log("async execution test after postMessage");
-  })();
 }
 
 console.log("waiting for preferred languages postMessage");

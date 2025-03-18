@@ -107,73 +107,71 @@ Object.defineProperty(window, "ytInitialPlayerResponse", {
 
 // UBO fetch hook -- credits to Raymond Hill
 
-(() => {
-  window.fetch = new Proxy(window.fetch, {
-    apply: function (target, thisArg, args) {
-      try {
-        const fetchPromise = Reflect.apply(target, thisArg, args);
-        if (
-          typeof args[0] === "string" &&
-          args[0].endsWith("youtubei/v1/player") === false &&
-          args[0].includes("youtubei/v1/player?") === false
-        ) {
-          return fetchPromise;
-        }
-        if (
-          args[0].url &&
-          args[0].url.endsWith("youtubei/v1/player") === false &&
-          args[0].url.includes("youtubei/v1/player?") === false
-        ) {
-          return fetchPromise;
-        }
-        console.log("fetching", args[0], fetchPromise);
-        //return fetchPromise;
-        return fetchPromise
-          .then((responseBefore) => {
-            console.log("fetch response before", responseBefore);
-            const response = responseBefore.clone();
-            console.log("fetch response", response);
-            return response
-              .text()
-              .then((textBefore) => {
-                let textAfter = textBefore;
-                console.log("modifying response");
-                if (textBefore.includes("audioIsDefault")) {
-                  const responseContext = JSON.parse(textBefore);
-                  const audioTracks =
-                    responseContext.streamingData.adaptiveFormats.filter(
-                      (format) => format.mimeType.includes("audio")
-                    );
-                  _audioSelector_selectAudioTrack(audioTracks);
-                  responseContext.streamingData.adaptiveFormats = audioTracks;
-                  textAfter = JSON.stringify(responseContext);
-                }
-                const responseAfter = new Response(textAfter, {
-                  status: responseBefore.status,
-                  statusText: responseBefore.statusText,
-                  headers: responseBefore.headers,
-                });
-                Object.defineProperties(responseAfter, {
-                  ok: { value: responseBefore.ok },
-                  redirected: { value: responseBefore.redirected },
-                  type: { value: responseBefore.type },
-                  url: { value: responseBefore.url },
-                });
-                console.log("fetch response after", responseAfter);
-                return responseAfter;
-              })
-              .catch((reason) => {
-                console.error("Failed to read response text", reason);
-                return responseBefore;
-              });
-          })
-          .catch((reason) => {
-            console.error("Failed to fetch", reason);
-            return fetchPromise;
-          });
-      } catch (error) {
-        console.error("generic error", error);
+window.fetch = new Proxy(window.fetch, {
+  apply: function (target, thisArg, args) {
+    try {
+      const fetchPromise = Reflect.apply(target, thisArg, args);
+      if (
+        typeof args[0] === "string" &&
+        args[0].endsWith("youtubei/v1/player") === false &&
+        args[0].includes("youtubei/v1/player?") === false
+      ) {
+        return fetchPromise;
       }
-    },
-  });
-})();
+      if (
+        args[0].url &&
+        args[0].url.endsWith("youtubei/v1/player") === false &&
+        args[0].url.includes("youtubei/v1/player?") === false
+      ) {
+        return fetchPromise;
+      }
+      console.log("fetching", args[0], fetchPromise);
+      //return fetchPromise;
+      return fetchPromise
+        .then((responseBefore) => {
+          console.log("fetch response before", responseBefore);
+          const response = responseBefore.clone();
+          console.log("fetch response", response);
+          return response
+            .text()
+            .then((textBefore) => {
+              let textAfter = textBefore;
+              console.log("modifying response");
+              if (textBefore.includes("audioIsDefault")) {
+                const responseContext = JSON.parse(textBefore);
+                const audioTracks =
+                  responseContext.streamingData.adaptiveFormats.filter(
+                    (format) => format.mimeType.includes("audio")
+                  );
+                _audioSelector_selectAudioTrack(audioTracks);
+                responseContext.streamingData.adaptiveFormats = audioTracks;
+                textAfter = JSON.stringify(responseContext);
+              }
+              const responseAfter = new Response(textAfter, {
+                status: responseBefore.status,
+                statusText: responseBefore.statusText,
+                headers: responseBefore.headers,
+              });
+              Object.defineProperties(responseAfter, {
+                ok: { value: responseBefore.ok },
+                redirected: { value: responseBefore.redirected },
+                type: { value: responseBefore.type },
+                url: { value: responseBefore.url },
+              });
+              console.log("fetch response after", responseAfter);
+              return responseAfter;
+            })
+            .catch((reason) => {
+              console.error("Failed to read response text", reason);
+              return responseBefore;
+            });
+        })
+        .catch((reason) => {
+          console.error("Failed to fetch", reason);
+          return fetchPromise;
+        });
+    } catch (error) {
+      console.error("generic error", error);
+    }
+  },
+});
