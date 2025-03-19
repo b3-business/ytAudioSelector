@@ -91,7 +91,7 @@ Object.defineProperty(window, "ytInitialPlayerResponse", {
   set: function (obj) {
     if (
       // check if the player has multiple audio tracks
-      obj?.captions?.playerCaptionsTracklistRenderer?.audioTracks?.length > 1
+      obj.streamingData?.adaptiveFormats?.some((format)=> format.audioTrack?.audioIsDefault === true)
     ) {
       const audioTracks = obj.streamingData.adaptiveFormats.filter((format) =>
         format.mimeType.includes("audio")
