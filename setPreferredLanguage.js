@@ -6,6 +6,10 @@ const _audioSelector = {
   enabled: false,
   logEnv: "DEV",
   port: chrome.runtime.connect(_audioSelector_ExtensionId),
+  notificationDialog: null,
+  notificationLangSpan: null,
+  initialNotification: false,
+  notificationTimeout: undefined,
 
   logger: function (logArguments) {
     if (this.logEnv === "DEV") {
@@ -21,13 +25,18 @@ const _audioSelector = {
         audioTrackOption.audioTrack.audioIsDefault = false;
       }
     });
+    _audioSelector.notificationLangSpan.textContent = lang;
+    _audioSelector.notificationDialog.show();
+    _audioSelector.notificationTimeout = setTimeout(() => {
+      _audioSelector.notificationDialog.close();
+    }, 2500);
   },
 
   selectAudioTrack: function (audioTracks) {
     //return; // temporary disable
     // yt will lauch the player with the first audio track set as default
     // we need to select the audio track based on the preferred languages
-    let preferredLanguages = _audioSelector.preferredLanguages;
+    const preferredLanguages = _audioSelector.preferredLanguages;
     if (preferredLanguages === undefined) {
       _audioSelector.logger("No preferred languages found");
       return;
@@ -97,6 +106,55 @@ const _audioSelector = {
   },
 
   init: function () {
+    
+    const escapeHTMLPolicy = trustedTypes.createPolicy("myEscapePolicy", {
+      createHTML: (string) => string,
+    });
+
+    const notificationDialogHTML = escapeHTMLPolicy.createHTML(`
+    <dialog id="audioSelectorNotificationDialog">
+      ytAudioSelector: audio language updated to 
+      <span id="audioSelectorNotificationLang"></span>
+    </dialog>
+    `);
+
+    const tmp = document.createElement("div");
+    tmp.innerHTML = notificationDialogHTML;
+    const notificationDialog = tmp.querySelector("#audioSelectorNotificationDialog");
+
+    _audioSelector.notificationDialog = notificationDialog;
+    _audioSelector.notificationLangSpan = notificationDialog.querySelector("#audioSelectorNotificationLang");
+
+    function appendNotificationDialog() {
+      if (document.body) {
+        document.body.appendChild(notificationDialog);
+        return true;
+      }
+      return false;
+    }
+
+    setTimeout(async () => {
+      let appended = appendNotificationDialog();
+      while (appended === false) {
+        appended = appendNotificationDialog();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      // dialog click event listener must be added after the dialog is appended to the DOM
+      notificationDialog.addEventListener("click", (e) => {
+        this.logger("notification dialog clicked --> closing");
+        e.preventDefault();
+        notificationDialog.close();
+      });
+      // fix for the first notification.
+      // reset the notificationTimeout, as the first one is shown delayed, due to the dialog not being appended to the DOM
+      _audioSelector.initialNotification && clearTimeout(_audioSelector.notificationTimeout) && notificationDialog.show();
+      _audioSelector.notificationTimeout = setTimeout(() => {
+        notificationDialog.close();
+      }
+      , 2500);
+    }, 0);
+
+
     // requires externally_connectable in manifest --> documentation https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage
     // use sendmessage to request preferred languages from the extension once for the page initialization
     chrome.runtime.sendMessage(
@@ -107,14 +165,6 @@ const _audioSelector = {
         _audioSelector.preferredLanguages = response.data.selectedLanguages;
         _audioSelector.enabled = response.data.enabled;
         _audioSelector.logEnv = response.data.logEnv;
-        _audioSelector.logger([
-          "Preferred languages",
-          _audioSelector.preferredLanguages,
-          "Enabled",
-          _audioSelector.enabled,
-          "Log Environment",
-          _audioSelector.logEnv,
-        ]);
       }
     );
     _audioSelector.port.onMessage.addListener((message) => {
@@ -140,6 +190,7 @@ const _audioSelector = {
           )
         ) {
           _audioSelector.logger("applying audio language fix");
+          _audioSelector.initialNotification = true;
           const audioTracks = obj.streamingData.adaptiveFormats.filter(
             (format) => format.mimeType.includes("audio")
           );

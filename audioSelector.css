@@ -1,0 +1,9 @@
+dialog#audioSelectorNotificationDialog {
+  top: 5vh;
+  right: 15vw;
+  margin: unset;
+  inset-inline-start: unset;
+  /* inset-inline-end: 0; */;
+  font-size: larger;
+  z-index: 1000;
+}
