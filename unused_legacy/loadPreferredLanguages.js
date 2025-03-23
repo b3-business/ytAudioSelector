@@ -1,7 +1,6 @@
 // at document_start in isolated
 // load preferred languages from chrome storage
 
-
 async function loadPreferredLanguages() {
   let selectedLanguages = [];
   const storage = await chrome.storage.local.get();

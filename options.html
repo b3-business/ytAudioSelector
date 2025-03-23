@@ -18,6 +18,11 @@
     <li>Original audio track will be used if no preferred language matches</li>
   </ol>
   <span>Otherwise no action is taken.</span>
+  <h3>Extension State</h3>
+  <button id="toggleEnabled" type="button">toggle extension status</button>
+  <br>
+  <span>Extension is </span>
+  <span id="extensionState"></span>
   <h3>preferred languages</h3>
   <div>
     <ol id="selectedLanguages">
@@ -27,6 +32,9 @@
   <h3>Select audio track language to add to your list</h3>
   <select id="addLanguageSelect">Select a language to add.</select>
   <button id="addLanguage" type="button">Add Language</button>
+  <h3>Debug Log</h3>
+  <input type="checkbox" name="debugLog" id="debugLog" />
+  <label for="debugLog">Debug Log</label>
 </body>
 <script src="constants.js"></script>
 <script src="options.js"></script>

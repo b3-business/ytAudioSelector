@@ -1,24 +1,54 @@
 let selectedLanguages = undefined;
+let enabled = false;
+let logEnv = "PROD";
+const extensionId = "bafgagiibjihhmmcddalbojahagoidho";
+const port = chrome.runtime.connect(extensionId);
 
 async function saveSelectedLanguages() {
-  await chrome.storage.local.set({"selectedLanguages": selectedLanguages});
+  await chrome.storage.local.set({
+    "selectedLanguages": selectedLanguages,
+    "enabled": enabled,
+    "logEnv": logEnv
+  });
+
+}
+
+function logger(logMessage) {
+  if (logEnv === "DEV") {
+    console.log(logMessage);
+  }
 }
 
 async function main() {
-  const storage = await chrome.storage.local.get();
-  if (Object.keys(storage).length === 0) {
-    selectedLanguages = [];
-  }
-  else {
-    selectedLanguages = storage.selectedLanguages;
-  }
 
-  fillOptions();
-  fillSelectedLanguages();
+  port.onMessage.addListener((message) => {
+    if (message.type === "preferredLanguagesData") {
+      selectedLanguages = message.data.selectedLanguages;
+      enabled = message.data.enabled;
+      logEnv = message.data.logEnv;
+      fillOptions();
+      fillSelectedLanguages();
+      updateEnabledState();
+      updateLogEnvCheckbox();
+    }
+    logger(message);
+  });
+
+  port.postMessage({ type: "preferredLanguagesRequest" });
   
   const addLanguageButton = document.getElementById("addLanguage");
   if (addLanguageButton) {
     addLanguageButton.addEventListener("click", addLanguage);
+  }
+
+  const toggleEnabledButton = document.getElementById("toggleEnabled");
+  if (toggleEnabledButton) {
+    toggleEnabledButton.addEventListener("click", toggleEnabled);
+  }
+
+  const logEnvCheckbox = document.getElementById("debugLog");
+  if (logEnvCheckbox) {
+    logEnvCheckbox.addEventListener("change", toggleLogEnv);
   }
   
 }
@@ -27,6 +57,7 @@ function fillOptions() {
   const select = document.getElementById("addLanguageSelect");
   
   select.innerHTML = "";
+  // languages from constants.js
   languages.forEach((language) => {
     if (selectedLanguages.includes(language)) {
       return;
@@ -155,5 +186,33 @@ function addLanguage(e) {
   fillSelectedLanguages();
   saveSelectedLanguages();
 }
+
+function updateEnabledState() {
+  const extensionEnabledSpan = document.getElementById("extensionState");
+  if (extensionEnabledSpan) {
+    extensionEnabledSpan.textContent = enabled ? "active" : "not active";
+  }
+  extensionEnabledSpan.classList.toggle("active", enabled);
+  extensionEnabledSpan.classList.toggle("inactive", !enabled);
+}
+
+function toggleEnabled() {
+  enabled = enabled === true ? false : true;
+  saveSelectedLanguages();
+}
+
+function updateLogEnvCheckbox() {
+  const logEnvCheckbox = document.getElementById("debugLog");
+  if (logEnvCheckbox) {
+    logEnvCheckbox.checked = logEnv === "DEV";
+  }
+}
+
+function toggleLogEnv() {
+  logEnv = logEnv === "DEV" ? "PROD" : "DEV";
+  saveSelectedLanguages();
+}
+
+
 
 main();

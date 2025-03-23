@@ -5,3 +5,13 @@ button {
 body {
   min-width: 20rem;
 }
+
+.active {
+  background-color: #005f03;
+  color: white;
+}
+
+.inactive {
+  background-color: #600000;
+  color: white;
+}

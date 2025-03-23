@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Audio Selector",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
   "permissions": ["storage", "scripting"],
   "externally_connectable": {
@@ -21,5 +21,6 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "homepage_url": "https://github.com/Bloodiko/ytAudioSelector"
 }
