@@ -43,7 +43,7 @@ const _audioSelector = {
     }
 
     const originalAudioTrackLang = audioTracks.find((e) =>
-      e.audioTrack?.displayName.includes("original")
+      e.audioTrack?.displayName.toLowerCase().includes("original")
     );
 
     if (originalAudioTrackLang === undefined) {
