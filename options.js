@@ -1,7 +1,7 @@
 let selectedLanguages = undefined;
 let enabled = false;
 let logEnv = "PROD";
-const extensionId = "bafgagiibjihhmmcddalbojahagoidho";
+const extensionId = "oekkkogcccckecdkgnlnbblcfiafehaj";
 const port = chrome.runtime.connect(extensionId);
 
 async function saveSelectedLanguages() {
