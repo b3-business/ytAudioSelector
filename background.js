@@ -83,14 +83,17 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onConnectExternal.addListener((port) => {
   activePorts.push(port);
   port.onDisconnect.addListener(() => {
+    console.log("port external disconnected");
     activePorts.splice(activePorts.indexOf(port), 1);
   });
 });
 
 chrome.runtime.onConnect.addListener((port) => {
+  logger("Port connected");
   // will be invoked for isolated content scripts and options page
   activePorts.push(port);
   port.onDisconnect.addListener(() => {
+    console.log("BackgroundJS - Port disconnected");
     activePorts.splice(activePorts.indexOf(port), 1);
   });
   // on connect send the current preferred languages once

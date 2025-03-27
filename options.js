@@ -34,6 +34,10 @@ async function main() {
     logger(message);
   });
 
+  port.onDisconnect.addListener(() => {
+    console.log("Options port disconnected");
+  });
+
   port.postMessage({ type: "preferredLanguagesRequest" });
   
   const addLanguageButton = document.getElementById("addLanguage");

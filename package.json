@@ -1,15 +1,15 @@
 {
   "name": "ytaudioselector",
-  "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
-  "authors": "Bloodiko",
   "version": "0.5.0",
   "main": "background.js",
   "devDependencies": {
-    "chrome-types": "^0.1.345",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/chrome": "^0.0.312"
   },
-  "private": true,
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "authors": "Bloodiko",
+  "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
+  "private": true
 }
