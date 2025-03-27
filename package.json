@@ -4,12 +4,17 @@
   "main": "background.js",
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/chrome": "^0.0.312"
+    "@types/chrome": "^0.0.312",
+    "bestzip": "^2.2.1"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "authors": "Bloodiko",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
-  "private": true
+  "private": true,
+
+  "scripts": {
+    "finalize": "bun run scripts/package.ts && bestzip ytaudioselector.zip dist/*"
+  }
 }
