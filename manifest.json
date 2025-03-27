@@ -24,5 +24,10 @@
     "service_worker": "background.js"
   },
   "homepage_url": "https://github.com/Bloodiko/ytAudioSelector",
-  "key": "-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApI1jc+gDTlT7sJJH59ZeASaj6QBu2iY6ENfM+WPxm1ELTFovxfC9FXo8TtDQ+jr7Zp6SWhB/8Vy0Vv5mcImZ23upko3s9tHDFz3qlhx57D4prXy9KjAGIvPI1q3skifaY1+Oa53drpoO9TBK23/uRD4vpQNDxglY9qJMbDPI4clPvNnCFpb1tMS7ZrNvpJBi29k8lDJq3lbPgiLyLOl07DlLJ4BFoi04HXpeIJw+q+z3tycRBrRp8Os2SJ+RNRWh0Ibeov+sPWY9IcUX3xb7ryB/RqLw7TCHqZ5qJo4PVyHsp/ROB9Wlr54hZMvFMZl4HMwi3Kq+EurRWW+TmRMbqQIDAQAB-----END PUBLIC KEY-----"
+  "key": "-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApI1jc+gDTlT7sJJH59ZeASaj6QBu2iY6ENfM+WPxm1ELTFovxfC9FXo8TtDQ+jr7Zp6SWhB/8Vy0Vv5mcImZ23upko3s9tHDFz3qlhx57D4prXy9KjAGIvPI1q3skifaY1+Oa53drpoO9TBK23/uRD4vpQNDxglY9qJMbDPI4clPvNnCFpb1tMS7ZrNvpJBi29k8lDJq3lbPgiLyLOl07DlLJ4BFoi04HXpeIJw+q+z3tycRBrRp8Os2SJ+RNRWh0Ibeov+sPWY9IcUX3xb7ryB/RqLw7TCHqZ5qJo4PVyHsp/ROB9Wlr54hZMvFMZl4HMwi3Kq+EurRWW+TmRMbqQIDAQAB-----END PUBLIC KEY-----",
+  "icons": {
+    "48": "icons/YtBadgeIcon_48.png",
+    "64": "icons/YtBadgeIcon_64.png",
+    "128": "icons/YtBadgeIcon_128.png"
+  }
 }

@@ -2,6 +2,7 @@ import {copyFile, mkdir} from "node:fs/promises";
 
 
 await mkdir("dist", {recursive: true})
+await mkdir("dist/icons", {recursive: true})
 
 // extensions root
 await copyFile("manifest.json", "dist/manifest.json")
@@ -19,3 +20,7 @@ await copyFile("options.css", "dist/options.css")
 await copyFile("audioSelector.css", "dist/audioSelector.css")
 await copyFile("setPreferredLanguage.js", "dist/setPreferredLanguage.js")
 
+// icons
+await copyFile("icons/YtBadgeIcon_48.png", "dist/icons/YtBadgeIcon_48.png")
+await copyFile("icons/YtBadgeIcon_64.png", "dist/icons/YtBadgeIcon_64.png")
+await copyFile("icons/YtBadgeIcon_128.png", "dist/icons/YtBadgeIcon_128.png")
