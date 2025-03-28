@@ -3,7 +3,7 @@
   "name": "YouTube Audio Selector",
   "version": "0.5.0",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
-  "permissions": ["storage", "scripting"],
+  "permissions": ["storage"],
   "externally_connectable": {
     "matches": ["https://www.youtube.com/*"]
   },

@@ -55,9 +55,10 @@ const _audioSelector = {
 
     for (let audioTrackOption of audioTracks) {
       const lang = audioTrackOption.audioTrack.displayName;
+      const langCode = audioTrackOption.audioTrack.id.split(/[-\.]/)[0];
       // original track is a preferred language, select it. - Strategy 1
       if (
-        preferredLanguages.includes(lang.replace("original", "").trim()) &&
+        preferredLanguages.includes(langCode) &&
         originalAudioTrackLang.audioTrack.displayName === lang
       ) {
         _audioSelector.logger(

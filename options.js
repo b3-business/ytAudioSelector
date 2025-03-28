@@ -1,8 +1,10 @@
-let selectedLanguages = undefined;
+let selectedLanguages = [];
 let enabled = false;
 let logEnv = "PROD";
 const extensionId = "oekkkogcccckecdkgnlnbblcfiafehaj";
 const port = chrome.runtime.connect(extensionId);
+
+const selectedLanguagesTextByCode = new Map();
 
 async function saveSelectedLanguages() {
   await chrome.storage.local.set({
@@ -26,6 +28,12 @@ async function main() {
       selectedLanguages = message.data.selectedLanguages;
       enabled = message.data.enabled;
       logEnv = message.data.logEnv;
+      languages.forEach((value, language) => {
+        if (selectedLanguages.includes(value)) {
+          selectedLanguagesTextByCode.set(value, language);
+        }
+      });
+
       fillOptions();
       fillSelectedLanguages();
       updateEnabledState();
@@ -62,12 +70,12 @@ function fillOptions() {
   
   select.innerHTML = "";
   // languages from constants.js
-  languages.forEach((language) => {
-    if (selectedLanguages.includes(language)) {
+  languages.forEach((value, language) => {
+    if (selectedLanguages.includes(value)) {
       return;
     }
     const option = document.createElement("option");
-    option.value = language;
+    option.value = value;
     option.textContent = language;
     select.appendChild(option);
   });
@@ -83,7 +91,7 @@ function fillSelectedLanguages() {
   selectedLanguages.forEach((language,i) => {
     const li = document.createElement("li");
     li.setAttribute("data-index", i);
-    li.textContent = language;
+    li.textContent = selectedLanguagesTextByCode.get(language) || "Unknown. Please remove this entry.";
 
     const upButton = document.createElement("button");
     upButton.textContent = "↑";
@@ -185,6 +193,7 @@ function addLanguage(e) {
   }
 
   selectedLanguages.push(selectedLanguage);
+  selectedLanguagesTextByCode.set(selectedLanguage, select.options[select.selectedIndex].textContent);
   
   fillOptions();
   fillSelectedLanguages();

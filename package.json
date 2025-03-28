@@ -13,8 +13,10 @@
   "authors": "Bloodiko",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
   "private": true,
-
   "scripts": {
     "finalize": "bun run scripts/package.ts && bestzip ytaudioselector.zip dist/*"
+  },
+  "dependencies": {
+    "@cospired/i18n-iso-languages": "^4.2.0"
   }
 }

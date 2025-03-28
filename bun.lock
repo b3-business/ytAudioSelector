@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "ytaudioselector",
+      "dependencies": {
+        "@cospired/i18n-iso-languages": "^4.2.0",
+      },
       "devDependencies": {
         "@types/bun": "latest",
         "@types/chrome": "^0.0.312",
@@ -14,6 +17,8 @@
     },
   },
   "packages": {
+    "@cospired/i18n-iso-languages": ["@cospired/i18n-iso-languages@4.2.0", "", {}, "sha512-vy8cq1176MTxVwB1X9niQjcIYOH29F8Huxtx8hLmT5Uz3l1ztGDGri8KN/4zE7LV2mCT7JrcAoNV/I9yb+lNUw=="],
+
     "@types/bun": ["@types/bun@1.2.5", "", { "dependencies": { "bun-types": "1.2.5" } }, "sha512-w2OZTzrZTVtbnJew1pdFmgV99H0/L+Pvw+z1P67HaR18MHOzYnTYOi6qzErhK8HyT+DB782ADVPPE92Xu2/Opg=="],
 
     "@types/chrome": ["@types/chrome@0.0.312", "", { "dependencies": { "@types/filesystem": "*", "@types/har-format": "*" } }, "sha512-m204djOoU/YqF1dRw3YLk2L3tcDTYREUERDQDUAmROK3Rv94nLbMJ4uvjzr/Yj/A7SyEpTrpoCuXBKTuerEdqg=="],
