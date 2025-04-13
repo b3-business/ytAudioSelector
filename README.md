@@ -3,6 +3,9 @@
 Youtube for some reason sometimes selects an audio track that you may not want.
 This extension allows you to predefine languages, which will be selected automatically when you open a video.
 
+## Link to Chrome Web Store
+[ChromeWebStore - YoutubeAudioSelector]( https://chromewebstore.google.com/detail/youtube-audio-selector/oekkkogcccckecdkgnlnbblcfiafehaj)
+
 ## Strategy
 
 If one of the predefined languages is the original audio track of the video, it will be selected.
