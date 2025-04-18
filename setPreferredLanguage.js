@@ -42,8 +42,15 @@ const _audioSelector = {
       return;
     }
 
-    const originalAudioTrackLang = audioTracks.find((e) =>
-      e.audioTrack?.displayName.toLowerCase().includes("original")
+    const originalAudioTrackLang = audioTracks.find((e) =>{
+      let result = e.audioTrack?.id.includes("4");
+      if (result) {
+        // e.g "en.4" or "en-GB.4"
+        _audioSelector.logger(["Original audio track found by id mgic number (4)", e.audioTrack.id]);
+      }
+      _audioSelector.logger(["Also has original tag:",e.audioTrack?.displayName.toLowerCase().includes("original")]);
+      return result;
+    }
     );
 
     if (originalAudioTrackLang === undefined) {
