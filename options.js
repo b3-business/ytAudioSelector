@@ -2,7 +2,8 @@ let selectedLanguages = [];
 let enabled = false;
 let logEnv = "PROD";
 const extensionId = "oekkkogcccckecdkgnlnbblcfiafehaj";
-const port = chrome.runtime.connect(extensionId);
+let port = chrome.runtime.connect(extensionId);
+let heartbeatInterval = undefined;
 
 const selectedLanguagesTextByCode = new Map();
 
@@ -18,6 +19,62 @@ async function saveSelectedLanguages() {
 function logger(logMessage) {
   if (logEnv === "DEV") {
     console.log(logMessage);
+  }
+}
+
+function updateData(data) {
+  selectedLanguages = data.selectedLanguages;
+  enabled = data.enabled;
+  logEnv = data.logEnv;
+}
+
+function heartbeatFunction() {
+  try {
+    //logger("heartbeat ping");
+    port.postMessage({
+      type: REQUESTS.PING,
+    });
+  } catch (error) {
+    // port is disconnected
+    clearInterval(heartbeatInterval);
+    reconnectPort();
+  }
+}
+
+function messageHandler(message) {
+  if (message.type === RESPONSES.PREFERRED_LANGUAGES_DATA) {
+    logger([
+      "Received preferred languages update",
+      message.data,
+    ]);
+    updateData(message.data);
+  }
+}
+function disconnectHandler() {
+  logger("Port disconnected");
+  // try to reconnect to the background script
+  clearInterval(heartbeatInterval);
+  setTimeout(reconnectPort, 1000);
+}
+
+
+function reconnectPort() {
+  clearInterval(heartbeatInterval);
+  try {
+    port = chrome.runtime.connect(extensionId);
+    port.onMessage.addListener(messageHandler);
+    port.onDisconnect.addListener(
+      disconnectHandler
+    );
+    heartbeatInterval = setInterval(
+      heartbeatFunction,
+      5000
+    );
+    logger("Port reconnected");
+  } catch (error) {
+    setTimeout(() => {
+      reconnectPort();
+    }, 1000);
   }
 }
 
@@ -48,9 +105,7 @@ async function main() {
 
   // waking the background script up. Else we might not receive a response
   port.postMessage({ type: REQUESTS.PING });
-  const heartbeat = setInterval(() => {
-    port.postMessage({ type: REQUESTS.PING });
-  }, 5000); // every 5 seconds to keep the background script if the page is open
+  heartbeatInterval = setInterval(heartbeatFunction, 5000); // every 5 seconds to keep the background script if the page is open
 
   port.onDisconnect.addListener(() => {
     console.log("Options port disconnected");

@@ -8,8 +8,8 @@ chrome.runtime.sendMessage(
     if (response.type === "pong") {
       console.log("Background script is active");
     }
-  } 
-)
+  }
+);
 
 const _audioSelector = {
   extensionId: _audioSelector_ExtensionId,
@@ -29,22 +29,28 @@ const _audioSelector = {
     PREFERRED_LANGUAGES_DATA: "preferredLanguagesData",
     PONG: "pong",
   },
-  
+
   logger: function (logArguments) {
     if (this.logEnv === "DEV") {
       console.log(logArguments);
     }
   },
 
-  heartbeatFunction:  () => {
+  heartbeatFunction: () => {
+    try {
       //_audioSelector.logger("heartbeat ping");
       _audioSelector.port.postMessage({
         type: _audioSelector.REQUESTS.PING,
       });
-    },
+    } catch (error) {
+      // port is disconnected
+      clearInterval(_audioSelector.heartbeatInterval);
+      _audioSelector.reconnectPort();
+    }
+  },
   heartbeatInterval: undefined,
 
-  applyLanguage: function (lang, audioTracks, streamingData) {
+  applyLanguage: function (lang, audioTracks, context) {
     audioTracks.forEach((audioTrackOption) => {
       if (audioTrackOption.audioTrack.displayName === lang) {
         audioTrackOption.audioTrack.audioIsDefault = true;
@@ -59,7 +65,7 @@ const _audioSelector = {
     }, 2500);
   },
 
-  selectAudioTrack: function (audioTracks, streamingData) {
+  selectAudioTrack: function (audioTracks, context) {
     //return; // temporary disable
     // yt will lauch the player with the first audio track set as default
     // we need to select the audio track based on the preferred languages
@@ -69,16 +75,21 @@ const _audioSelector = {
       return;
     }
 
-    const originalAudioTrackLang = audioTracks.find((e) =>{
+    const originalAudioTrackLang = audioTracks.find((e) => {
       let result = e.audioTrack?.id.includes("4");
       if (result) {
         // e.g "en.4" or "en-GB.4"
-        _audioSelector.logger(["Original audio track found by id mgic number (4)", e.audioTrack.id]);
+        _audioSelector.logger([
+          "Original audio track found by id mgic number (4)",
+          e.audioTrack.id,
+        ]);
       }
-      _audioSelector.logger(["Also has original tag:",e.audioTrack?.displayName.toLowerCase().includes("original")]);
+      _audioSelector.logger([
+        "Also has original tag:",
+        e.audioTrack?.displayName.toLowerCase().includes("original"),
+      ]);
       return result;
-    }
-    );
+    });
 
     if (originalAudioTrackLang === undefined) {
       _audioSelector.logger("No original audio track found");
@@ -96,9 +107,9 @@ const _audioSelector = {
         originalAudioTrackLang.audioTrack.displayName === lang
       ) {
         _audioSelector.logger(
-          `Strategy 1 (matched original) - Selecting ${lang} original audio track`
+          `Strategy 1 (matched original) - Selecting ${lang} original audio track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
         );
-        _audioSelector.applyLanguage(lang, audioTracks, streamingData);
+        _audioSelector.applyLanguage(lang, audioTracks, context);
         return;
       }
       // original track is not a preferred language, select the first preferred language. - Strategy 2
@@ -119,7 +130,7 @@ const _audioSelector = {
     if (matchedLang.length > 0) {
       const firstMatchedLang = matchedLang[0];
       _audioSelector.logger(
-        `Strategy 2 (first match) - Selecting ${firstMatchedLang.lang} Audio Track`
+        `Strategy 2 (first match) - Selecting ${firstMatchedLang.lang} Audio Track for video ${streamingData.videoDetails.title} (${streamingData.videoDetails.videoId})`
       );
       _audioSelector.applyLanguage(
         firstMatchedLang.audioTrack.displayName,
@@ -132,7 +143,7 @@ const _audioSelector = {
     // no preferred language found, select the original track - Strategy 3
     if (!matchedLang.length && originalAudioTrackLang) {
       _audioSelector.logger(
-        `Strategy 3 (original) - Selecting ${originalAudioTrackLang.audioTrack.displayName} Audio Track`
+        `Strategy 3 (original) - Selecting ${originalAudioTrackLang.audioTrack.displayName} Audio Track for video ${streamingData.videoDetails.title} (${streamingData.videoDetails.videoId})`
       );
       _audioSelector.applyLanguage(
         originalAudioTrackLang.audioTrack.displayName,
@@ -147,15 +158,20 @@ const _audioSelector = {
     _audioSelector.enabled = data.enabled;
     _audioSelector.logEnv = data.logEnv;
   },
-  
+
   reconnectPort: function () {
     clearInterval(_audioSelector.heartbeatInterval);
     try {
       _audioSelector.port = chrome.runtime.connect(_audioSelector.extensionId);
       _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
-      _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
-      _audioSelector.heartbeatInterval = setInterval(_audioSelector.heartbeatFunction, 5000); 
-      _audioSelector.logger("Port reconnected");  
+      _audioSelector.port.onDisconnect.addListener(
+        _audioSelector.disconnectHandler
+      );
+      _audioSelector.heartbeatInterval = setInterval(
+        _audioSelector.heartbeatFunction,
+        5000
+      );
+      _audioSelector.logger("Port reconnected");
     } catch (error) {
       setTimeout(() => {
         _audioSelector.reconnectPort();
@@ -176,11 +192,10 @@ const _audioSelector = {
     _audioSelector.logger("Port disconnected");
     // try to reconnect to the background script
     clearInterval(_audioSelector.heartbeat);
-    setTimeout(_audioSelector.reconnectPort, 1000);    
+    setTimeout(_audioSelector.reconnectPort, 1000);
   },
 
   init: function () {
-    
     const escapeHTMLPolicy = trustedTypes.createPolicy("myEscapePolicy", {
       createHTML: (string) => string,
     });
@@ -194,10 +209,14 @@ const _audioSelector = {
 
     const tmp = document.createElement("div");
     tmp.innerHTML = notificationDialogHTML;
-    const notificationDialog = tmp.querySelector("#audioSelectorNotificationDialog");
+    const notificationDialog = tmp.querySelector(
+      "#audioSelectorNotificationDialog"
+    );
 
     _audioSelector.notificationDialog = notificationDialog;
-    _audioSelector.notificationLangSpan = notificationDialog.querySelector("#audioSelectorNotificationLang");
+    _audioSelector.notificationLangSpan = notificationDialog.querySelector(
+      "#audioSelectorNotificationLang"
+    );
 
     function appendNotificationDialog() {
       if (document.body) {
@@ -221,11 +240,12 @@ const _audioSelector = {
       });
       // fix for the first notification.
       // reset the notificationTimeout, as the first one is shown delayed, due to the dialog not being appended to the DOM
-      _audioSelector.initialNotification && clearTimeout(_audioSelector.notificationTimeout) && notificationDialog.show();
+      _audioSelector.initialNotification &&
+        clearTimeout(_audioSelector.notificationTimeout) &&
+        notificationDialog.show();
       _audioSelector.notificationTimeout = setTimeout(() => {
         notificationDialog.close();
-      }
-      , 2500);
+      }, 2500);
     }, 0);
 
     setInterval(_audioSelector.heartbeatFunction, 5000);
@@ -241,7 +261,9 @@ const _audioSelector = {
       }
     );
     _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
-    _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
+    _audioSelector.port.onDisconnect.addListener(
+      _audioSelector.disconnectHandler
+    );
 
     // hook ytInitialPlayerResponse to catch "default audio track" from doc response
     Object.defineProperty(window, "ytInitialPlayerResponse", {
@@ -258,7 +280,7 @@ const _audioSelector = {
           const audioTracks = obj.streamingData.adaptiveFormats.filter(
             (format) => format.mimeType.includes("audio")
           );
-          _audioSelector.selectAudioTrack(audioTracks, obj.streamingData);
+          _audioSelector.selectAudioTrack(audioTracks, obj);
         }
         this._hooked_ytInitialPlayerResponse = obj;
       },
@@ -309,7 +331,10 @@ const _audioSelector = {
                         responseContext.streamingData.adaptiveFormats.filter(
                           (format) => format.mimeType.includes("audio")
                         );
-                      _audioSelector.selectAudioTrack(audioTracks, responseContext.streamingData);
+                      _audioSelector.selectAudioTrack(
+                        audioTracks,
+                        responseContext
+                      );
                       responseContext.streamingData.adaptiveFormats =
                         audioTracks;
                       textAfter = JSON.stringify(responseContext);

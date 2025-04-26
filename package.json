@@ -1,6 +1,6 @@
 {
   "name": "ytaudioselector",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "main": "background.js",
   "devDependencies": {
     "@types/bun": "latest",
