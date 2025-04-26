@@ -24,7 +24,11 @@ function logger(logMessage) {
 async function main() {
 
   port.onMessage.addListener((message) => {
-    if (message.type === "preferredLanguagesData") {
+    if (message.type === RESPONSES.PONG) {
+      logger("PONG received from background script");
+      return;
+    }
+    if (message.type === RESPONSES.PREFERRED_LANGUAGES_DATA) {
       selectedLanguages = message.data.selectedLanguages;
       enabled = message.data.enabled;
       logEnv = message.data.logEnv;
@@ -41,6 +45,12 @@ async function main() {
     }
     logger(message);
   });
+
+  // waking the background script up. Else we might not receive a response
+  port.postMessage({ type: REQUESTS.PING });
+  const heartbeat = setInterval(() => {
+    port.postMessage({ type: REQUESTS.PING });
+  }, 5000); // every 5 seconds to keep the background script if the page is open
 
   port.onDisconnect.addListener(() => {
     console.log("Options port disconnected");

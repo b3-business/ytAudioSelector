@@ -2,11 +2,35 @@ let selectedLanguages = [];
 let enabled = false;
 let logEnv = "PROD";
 
+const REQUESTS = {
+  PREFERRED_LANGUAGES_REQUEST: "preferredLanguagesRequest",
+  PING: "ping",
+};
+const RESPONSES = {
+  PREFERRED_LANGUAGES_DATA: "preferredLanguagesData",
+  PONG: "pong",
+};
+
+let initDone = false;
+
 const activePorts = [];
 
 function logger(logMessage) {
   if (logEnv === "DEV") {
     console.log(logMessage);
+  }
+}
+
+function updatePorts() {
+  for (const port of activePorts) {
+    port.postMessage({
+      type: RESPONSES.PREFERRED_LANGUAGES_DATA,
+      data: {
+        selectedLanguages,
+        enabled,
+        logEnv,
+      },
+    });
   }
 }
 
@@ -25,16 +49,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       logger(["Preferred languages updated", selectedLanguages]);
     }
   }
-  for (const port of activePorts) {
-    port.postMessage({
-      type: "preferredLanguagesData",
-      data: {
-        selectedLanguages,
-        enabled,
-        logEnv,
-      },
-    });
-  }
+  updatePorts();
 });
 
 async function getSelectedLanguages() {
@@ -54,10 +69,15 @@ async function setSelectedLanguages(selectedLanguages) {
 
 chrome.runtime.onMessageExternal.addListener(
   async (request, sender, sendResponse) => {
-    if (request.type === "preferredLanguagesRequest") {
+    if (request.type === REQUESTS.PING) {
+      logger("PING received from external request");
+      sendResponse({ type: RESPONSES.PONG });
+      return;
+    }
+    if (request.type === REQUESTS.PREFERRED_LANGUAGES_REQUEST) {
       logger("Returning preferred languages on website request");
       sendResponse({
-        type: "preferredLanguagesData",
+        type: RESPONSES.PREFERRED_LANGUAGES_DATA,
         data: {
           selectedLanguages,
           enabled,
@@ -80,15 +100,7 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.runtime.onConnectExternal.addListener((port) => {
-  activePorts.push(port);
-  port.onDisconnect.addListener(() => {
-    console.log("port external disconnected");
-    activePorts.splice(activePorts.indexOf(port), 1);
-  });
-});
-
-chrome.runtime.onConnect.addListener((port) => {
+function connectPort(port) {
   logger("Port connected");
   // will be invoked for isolated content scripts and options page
   activePorts.push(port);
@@ -96,6 +108,23 @@ chrome.runtime.onConnect.addListener((port) => {
     console.log("BackgroundJS - Port disconnected");
     activePorts.splice(activePorts.indexOf(port), 1);
   });
+  port.onMessage.addListener((message) => {
+    if (message.type === REQUESTS.PING) {
+      port.postMessage({
+        type: RESPONSES.PONG,
+      });
+    }
+  });
+}
+
+chrome.runtime.onConnectExternal.addListener((port) => {
+  connectPort(port);
+  logger("External port connected")
+});
+
+chrome.runtime.onConnect.addListener((port) => {
+  connectPort(port)
+  logger("internal port connected")
   // on connect send the current preferred languages once
   port.postMessage({
     type: "preferredLanguagesData",
@@ -105,6 +134,7 @@ chrome.runtime.onConnect.addListener((port) => {
       logEnv,
     },
   });
+  logger("Port connected and sent preferred languages");
 });
 
 async function loadVariables() {
@@ -118,6 +148,9 @@ async function loadVariables() {
     }
   });
   selectedLanguages = await getSelectedLanguages();
+  logger(["Selected languages loaded", selectedLanguages]);
+  initDone = true;
+  updatePorts();
 }
 
 loadVariables();

@@ -36,3 +36,12 @@ const languages = new Map([
   ["Irish", "ga"],
   ["Welsh", "cy"],
 ]);
+
+const REQUESTS = {
+  PREFERRED_LANGUAGES_REQUEST: "preferredLanguagesRequest",
+  PING: "ping",
+};
+const RESPONSES = {
+  PREFERRED_LANGUAGES_DATA: "preferredLanguagesData",
+  PONG: "pong",
+};

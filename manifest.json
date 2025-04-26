@@ -9,7 +9,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/watch*", "https://www.youtube.com/embed/*", "https://www.youtube.com/shorts/*"],
+      "matches": ["https://www.youtube.com/*"],
       "js": ["setPreferredLanguage.js"],
       "css": ["audioSelector.css"],
       "run_at": "document_start",

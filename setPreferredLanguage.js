@@ -1,5 +1,16 @@
 const _audioSelector_ExtensionId = "oekkkogcccckecdkgnlnbblcfiafehaj";
 
+// send message to extention to wake it up. its potentially inactive by chrome
+chrome.runtime.sendMessage(
+  _audioSelector_ExtensionId,
+  { type: "ping" },
+  (response) => {
+    if (response.type === "pong") {
+      console.log("Background script is active");
+    }
+  } 
+)
+
 const _audioSelector = {
   extensionId: _audioSelector_ExtensionId,
   preferredLanguages: [],
@@ -10,14 +21,30 @@ const _audioSelector = {
   notificationLangSpan: null,
   initialNotification: false,
   notificationTimeout: undefined,
-
+  REQUESTS: {
+    PREFERRED_LANGUAGES_REQUEST: "preferredLanguagesRequest",
+    PING: "ping",
+  },
+  RESPONSES: {
+    PREFERRED_LANGUAGES_DATA: "preferredLanguagesData",
+    PONG: "pong",
+  },
+  
   logger: function (logArguments) {
     if (this.logEnv === "DEV") {
       console.log(logArguments);
     }
   },
 
-  applyLanguage: function (lang, audioTracks) {
+  heartbeatFunction:  () => {
+      //_audioSelector.logger("heartbeat ping");
+      _audioSelector.port.postMessage({
+        type: _audioSelector.REQUESTS.PING,
+      });
+    },
+  heartbeatInterval: undefined,
+
+  applyLanguage: function (lang, audioTracks, streamingData) {
     audioTracks.forEach((audioTrackOption) => {
       if (audioTrackOption.audioTrack.displayName === lang) {
         audioTrackOption.audioTrack.audioIsDefault = true;
@@ -32,7 +59,7 @@ const _audioSelector = {
     }, 2500);
   },
 
-  selectAudioTrack: function (audioTracks) {
+  selectAudioTrack: function (audioTracks, streamingData) {
     //return; // temporary disable
     // yt will lauch the player with the first audio track set as default
     // we need to select the audio track based on the preferred languages
@@ -71,7 +98,7 @@ const _audioSelector = {
         _audioSelector.logger(
           `Strategy 1 (matched original) - Selecting ${lang} original audio track`
         );
-        _audioSelector.applyLanguage(lang, audioTracks);
+        _audioSelector.applyLanguage(lang, audioTracks, streamingData);
         return;
       }
       // original track is not a preferred language, select the first preferred language. - Strategy 2
@@ -96,7 +123,8 @@ const _audioSelector = {
       );
       _audioSelector.applyLanguage(
         firstMatchedLang.audioTrack.displayName,
-        audioTracks
+        audioTracks,
+        streamingData
       );
       return;
     }
@@ -108,9 +136,47 @@ const _audioSelector = {
       );
       _audioSelector.applyLanguage(
         originalAudioTrackLang.audioTrack.displayName,
-        audioTracks
+        audioTracks,
+        streamingData
       );
     }
+  },
+
+  updateData: function (data) {
+    _audioSelector.preferredLanguages = data.selectedLanguages;
+    _audioSelector.enabled = data.enabled;
+    _audioSelector.logEnv = data.logEnv;
+  },
+  
+  reconnectPort: function () {
+    clearInterval(_audioSelector.heartbeatInterval);
+    try {
+      _audioSelector.port = chrome.runtime.connect(_audioSelector.extensionId);
+      _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
+      _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
+      _audioSelector.heartbeatInterval = setInterval(_audioSelector.heartbeatFunction, 5000); 
+      _audioSelector.logger("Port reconnected");  
+    } catch (error) {
+      setTimeout(() => {
+        _audioSelector.reconnectPort();
+      }, 1000);
+    }
+  },
+
+  messageHandler: function (message) {
+    if (message.type === _audioSelector.RESPONSES.PREFERRED_LANGUAGES_DATA) {
+      _audioSelector.logger([
+        "Received preferred languages update",
+        message.data,
+      ]);
+      _audioSelector.updateData(message.data);
+    }
+  },
+  disconnectHandler: function () {
+    _audioSelector.logger("Port disconnected");
+    // try to reconnect to the background script
+    clearInterval(_audioSelector.heartbeat);
+    setTimeout(_audioSelector.reconnectPort, 1000);    
   },
 
   init: function () {
@@ -162,30 +228,20 @@ const _audioSelector = {
       , 2500);
     }, 0);
 
+    setInterval(_audioSelector.heartbeatFunction, 5000);
 
     // requires externally_connectable in manifest --> documentation https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage
     // use sendmessage to request preferred languages from the extension once for the page initialization
     chrome.runtime.sendMessage(
       _audioSelector.extensionId,
-      { type: "preferredLanguagesRequest" },
+      { type: this.REQUESTS.PREFERRED_LANGUAGES_REQUEST },
       (response) => {
         _audioSelector.logger(["Received preferred languages", response.data]);
-        _audioSelector.preferredLanguages = response.data.selectedLanguages;
-        _audioSelector.enabled = response.data.enabled;
-        _audioSelector.logEnv = response.data.logEnv;
+        _audioSelector.updateData(response.data);
       }
     );
-    _audioSelector.port.onMessage.addListener((message) => {
-      if (message.type === "preferredLanguagesData") {
-        _audioSelector.logger([
-          "Received preferred languages update",
-          message.data,
-        ]);
-        _audioSelector.preferredLanguages = message.data.selectedLanguages;
-        _audioSelector.enabled = message.data.enabled;
-        _audioSelector.logEnv = message.data.logEnv;
-      }
-    });
+    _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
+    _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
 
     // hook ytInitialPlayerResponse to catch "default audio track" from doc response
     Object.defineProperty(window, "ytInitialPlayerResponse", {
@@ -202,7 +258,7 @@ const _audioSelector = {
           const audioTracks = obj.streamingData.adaptiveFormats.filter(
             (format) => format.mimeType.includes("audio")
           );
-          _audioSelector.selectAudioTrack(audioTracks);
+          _audioSelector.selectAudioTrack(audioTracks, obj.streamingData);
         }
         this._hooked_ytInitialPlayerResponse = obj;
       },
@@ -253,7 +309,7 @@ const _audioSelector = {
                         responseContext.streamingData.adaptiveFormats.filter(
                           (format) => format.mimeType.includes("audio")
                         );
-                      _audioSelector.selectAudioTrack(audioTracks);
+                      _audioSelector.selectAudioTrack(audioTracks, responseContext.streamingData);
                       responseContext.streamingData.adaptiveFormats =
                         audioTracks;
                       textAfter = JSON.stringify(responseContext);
