@@ -278,9 +278,12 @@ const _audioSelector = {
           _audioSelector.logger("applying audio language fix");
           _audioSelector.initialNotification = true;
           const audioTracks = obj.streamingData.adaptiveFormats.filter(
-            (format) => format.mimeType.includes("audio")
+            (format) => format.audioTrack !== undefined
           );
           _audioSelector.selectAudioTrack(audioTracks, obj);
+          if (obj.playerConfig?.mediaCommonConfig !== undefined){
+            obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+          }
         }
         this._hooked_ytInitialPlayerResponse = obj;
       },
@@ -324,19 +327,23 @@ const _audioSelector = {
                   .text()
                   .then((textBefore) => {
                     let textAfter = textBefore;
-                    _audioSelector.logger("modifying response");
                     if (textBefore.includes("audioIsDefault")) {
                       const responseContext = JSON.parse(textBefore);
                       const audioTracks =
-                        responseContext.streamingData.adaptiveFormats.filter(
-                          (format) => format.mimeType.includes("audio")
-                        );
+                      responseContext.streamingData.adaptiveFormats.filter(
+                        (format) => format.mimeType.includes("audio")
+                      );
+                      _audioSelector.logger("modifying response");
                       _audioSelector.selectAudioTrack(
                         audioTracks,
                         responseContext
                       );
                       responseContext.streamingData.adaptiveFormats =
                         audioTracks;
+                        if (responseContext.playerConfig?.mediaCommonConfig !== undefined){
+                          responseContext.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+                        }
+
                       textAfter = JSON.stringify(responseContext);
                     }
                     const responseAfter = new Response(textAfter, {
