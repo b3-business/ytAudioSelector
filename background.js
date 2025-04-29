@@ -1,5 +1,5 @@
 let selectedLanguages = [];
-let enabled = false;
+let enabled = true;
 let logEnv = "PROD";
 
 const REQUESTS = {
@@ -10,8 +10,6 @@ const RESPONSES = {
   PREFERRED_LANGUAGES_DATA: "preferredLanguagesData",
   PONG: "pong",
 };
-
-let initDone = false;
 
 const activePorts = [];
 
@@ -149,7 +147,6 @@ async function loadVariables() {
   });
   selectedLanguages = await getSelectedLanguages();
   logger(["Selected languages loaded", selectedLanguages]);
-  initDone = true;
   updatePorts();
 }
 

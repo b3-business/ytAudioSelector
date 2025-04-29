@@ -1,5 +1,5 @@
 let selectedLanguages = [];
-let enabled = false;
+let enabled = true;
 let logEnv = "PROD";
 const extensionId = "oekkkogcccckecdkgnlnbblcfiafehaj";
 let port = chrome.runtime.connect(extensionId);
