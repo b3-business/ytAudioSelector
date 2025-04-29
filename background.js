@@ -99,7 +99,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 function connectPort(port) {
-  logger("Port connected");
+  logger("BackgroundJS Port connected");
   // will be invoked for isolated content scripts and options page
   activePorts.push(port);
   port.onDisconnect.addListener(() => {

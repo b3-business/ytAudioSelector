@@ -107,7 +107,7 @@ const _audioSelector = {
         originalAudioTrackLang.audioTrack.displayName === lang
       ) {
         _audioSelector.logger(
-          `Strategy 1 (matched original) - Selecting ${lang} original audio track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
+          `Strategy 1 (matched original) - Selecting ${lang} audio track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
         );
         _audioSelector.applyLanguage(lang, audioTracks, context);
         return;
@@ -171,7 +171,7 @@ const _audioSelector = {
         _audioSelector.heartbeatFunction,
         5000
       );
-      _audioSelector.logger("Port reconnected");
+      _audioSelector.logger("AudioSelector Extension Port reconnected");
     } catch (error) {
       setTimeout(() => {
         _audioSelector.reconnectPort();
@@ -189,7 +189,7 @@ const _audioSelector = {
     }
   },
   disconnectHandler: function () {
-    _audioSelector.logger("Port disconnected");
+    _audioSelector.logger("AudioSelector Extension Port disconnected");
     // try to reconnect to the background script
     clearInterval(_audioSelector.heartbeat);
     setTimeout(_audioSelector.reconnectPort, 1000);
@@ -282,7 +282,7 @@ const _audioSelector = {
           );
           _audioSelector.selectAudioTrack(audioTracks, obj);
           if (obj.playerConfig?.mediaCommonConfig !== undefined){
-            obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+            //obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
           }
         }
         this._hooked_ytInitialPlayerResponse = obj;
@@ -318,10 +318,6 @@ const _audioSelector = {
             //return fetchPromise;
             return fetchPromise
               .then((responseBefore) => {
-                _audioSelector.logger([
-                  "fetch response before",
-                  responseBefore,
-                ]);
                 const response = responseBefore.clone();
                 return response
                   .text()
@@ -341,7 +337,7 @@ const _audioSelector = {
                       responseContext.streamingData.adaptiveFormats =
                         audioTracks;
                         if (responseContext.playerConfig?.mediaCommonConfig !== undefined){
-                          responseContext.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+                          //responseContext.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
                         }
 
                       textAfter = JSON.stringify(responseContext);
@@ -357,10 +353,6 @@ const _audioSelector = {
                       type: { value: responseBefore.type },
                       url: { value: responseBefore.url },
                     });
-                    _audioSelector.logger([
-                      "fetch response after",
-                      responseAfter,
-                    ]);
                     return responseAfter;
                   })
                   .catch((reason) => {

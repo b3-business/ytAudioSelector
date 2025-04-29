@@ -1,2 +1,7 @@
-1. Match languages via id (2 char lang code)
-2. Use https://www.npmjs.com/package/@cospired/i18n-iso-languages if needed
+* Fix video firstload issue 
+  * `document.querySelector("#movie_player").setAudioTrack(tracks.find((t)=>t.Ef.id.includes("en")))`
+  * use this for verification that the extension worked
+  * verification will not work on shorts without audio selection, as they dont have any "languages" in the player, despite available.
+
+* Fix Short Firstload issue on shorts without audio selection available. (HARD)
+

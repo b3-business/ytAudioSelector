@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YouTube Audio Selector",
   "version": "0.8.1",
-  "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
+  "description": "Automatically select a predefined audio track language for YouTube videos. Works on Shorts, even those without audio selection.",
   "permissions": ["storage"],
   "externally_connectable": {
     "matches": ["https://www.youtube.com/*"]

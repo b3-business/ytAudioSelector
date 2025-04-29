@@ -51,7 +51,7 @@ function messageHandler(message) {
   }
 }
 function disconnectHandler() {
-  logger("Port disconnected");
+  logger("AudioSelector extension port disconnected");
   // try to reconnect to the background script
   clearInterval(heartbeatInterval);
   setTimeout(reconnectPort, 1000);
@@ -70,7 +70,7 @@ function reconnectPort() {
       heartbeatFunction,
       5000
     );
-    logger("Port reconnected");
+    logger("AudioSelector extension port reconnected");
   } catch (error) {
     setTimeout(() => {
       reconnectPort();
@@ -106,10 +106,6 @@ async function main() {
   // waking the background script up. Else we might not receive a response
   port.postMessage({ type: REQUESTS.PING });
   heartbeatInterval = setInterval(heartbeatFunction, 5000); // every 5 seconds to keep the background script if the page is open
-
-  port.onDisconnect.addListener(() => {
-    console.log("Options port disconnected");
-  });
 
   port.postMessage({ type: "preferredLanguagesRequest" });
   
