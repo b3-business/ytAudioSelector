@@ -72,6 +72,9 @@ This object is still minified though, so its hard to actually find or use anythi
 
 If possible, using this player object to force the audio track would be nice.
 
+yotube sends the language in the protobuf body in the videoplayback request. field 1 --> 69 --> lang id code (de_DE.3, en.4) from initialPlayerResponse 
+regardless of whats default 
+
 ## Screenshots
 
 ![image](https://github.com/user-attachments/assets/dd36aa1a-7912-4f0c-954c-35f269fb54cf)
