@@ -7,66 +7,76 @@ chrome.runtime.sendMessage(_audioSelector_ExtensionId, { type: 'ping' }, (respon
   }
 });
 
-const _audioSelector = {
-  extensionId: _audioSelector_ExtensionId,
-  preferredLanguages: [],
-  enabled: false,
-  logEnv: 'DEV',
-  port: chrome.runtime.connect(_audioSelector_ExtensionId),
-  notificationDialog: null,
-  notificationLangSpan: null,
-  initialNotification: false,
-  notificationTimeout: undefined,
-  REQUESTS: {
-    PREFERRED_LANGUAGES_REQUEST: 'preferredLanguagesRequest',
-    PING: 'ping',
-  },
-  RESPONSES: {
-    PREFERRED_LANGUAGES_DATA: 'preferredLanguagesData',
-    PONG: 'pong',
-  },
+class AudioSelector {
+  constructor() {
+    this.extensionId = _audioSelector_ExtensionId;
+    this.preferredLanguages = [];
+    this.enabled = false;
+    this.logEnv = 'DEV';
+    this.port = chrome.runtime.connect(this.extensionId);
+    this.notificationDialog = null;
+    this.notificationLangSpan = null;
+    this.initialNotification = false;
+    this.notificationTimeout = undefined;
+    this.REQUESTS = {
+      PREFERRED_LANGUAGES_REQUEST: 'preferredLanguagesRequest',
+      PING: 'ping',
+    };
+    this.RESPONSES = {
+      PREFERRED_LANGUAGES_DATA: 'preferredLanguagesData',
+      PONG: 'pong',
+    };
+    this.videoLanguageCache = {};
+    this.heartbeatInterval = undefined;
 
-  videoLanguageCache: {},
+    this.responseModifyHandler = {
+      '/youtubei/v1/player': this.playerResponseHandler.bind(this),
+      '/youtubei/v1/account/get_setting_values': this.getSettingValuesResponseHandler.bind(this),
+    };
 
-  logger: function (logArguments) {
+    this.port.onMessage.addListener(this.messageHandler.bind(this));
+    this.port.onDisconnect.addListener(this.disconnectHandler.bind(this));
+  }
+
+  logger(logArguments) {
     if (this.logEnv === 'DEV') {
       console.log(logArguments);
     }
-  },
+  }
 
-  heartbeatFunction: () => {
+  heartbeatFunction() {
     try {
       //_audioSelector.logger("heartbeat ping");
-      _audioSelector.port.postMessage({
-        type: _audioSelector.REQUESTS.PING,
+      this.port.postMessage({
+        type: this.REQUESTS.PING,
       });
     } catch (error) {
       // port is disconnected
-      clearInterval(_audioSelector.heartbeatInterval);
-      _audioSelector.reconnectPort();
+      clearInterval(this.heartbeatInterval);
+      this.reconnectPort();
     }
-  },
-  heartbeatInterval: undefined,
+  }
+
   setLocalStorage(key, value) {
-    _audioSelector.logger(['Setting localStorage', key, value]);
+    this.logger(['Setting localStorage', key, value]);
     window.localStorage.setItem(key, JSON.stringify(value));
-  },
-  patchYTPlayerUserSettingsLocalStorage: function (lang) {
+  }
+
+  patchYTPlayerUserSettingsLocalStorage(lang) {
     // in a recent update youtube added a really dumb "quick fix" for the audio track selection, patching the localStorage to make it work again
     lang = lang || 'en.4'; // "en.4", "en-US.4", or default to "en.4" - works best with full code!
     let userSettings = {
       // 483 seems to be the key for audio language setting
       483: {
-        stringValue: lang, // defaulting to orginal english for now.
+        stringValue: lang,
       },
     };
 
     try {
       const localStorageItem = window.localStorage.getItem('yt-player-user-settings');
-      _audioSelector.logger(['Settings from localStorage', localStorageItem]);
+      this.logger(['Settings from localStorage', localStorageItem]);
       if (localStorageItem === null) {
-        _audioSelector.logger('yt-player-user-settings not found in localStorage');
-        _audioSelector.setLocalStorage('yt-player-user-settings', {
+        this.setLocalStorage('yt-player-user-settings', {
           creation: Date.now(),
           data: JSON.stringify(userSettings),
           expiration: Date.now() + 1000 * 60 * 60 * 24 * 30, // 1 month
@@ -79,7 +89,7 @@ const _audioSelector = {
         ...userSettings, // merge with existing settings
       };
 
-      _audioSelector.setLocalStorage('yt-player-user-settings', {
+      this.setLocalStorage('yt-player-user-settings', {
         creation: Date.now(),
         data: JSON.stringify(userSettings),
         expiration: Date.now() + 1000 * 60 * 60 * 24 * 30, // 1 month
@@ -87,28 +97,24 @@ const _audioSelector = {
       // force overriding multiple times, as youtube seems to read and write this localStorage item multiple times
       const forcePatch = (time) => {
         setTimeout(() => {
-          _audioSelector.setLocalStorage('yt-player-user-settings', {
+          this.setLocalStorage('yt-player-user-settings', {
             creation: Date.now(),
             data: JSON.stringify(userSettings),
             expiration: Date.now() + 1000 * 60 * 60 * 24 * 30, // 1 month
           });
         }, time);
       };
-      // force patching after 1 second, 2 seconds, and 3 seconds
       forcePatch(1000);
-      forcePatch(2000);
-      forcePatch(3000);
     } catch (error) {
-      _audioSelector.logger(['Failed to patch ytPlayerUserSettings localStorage', error]);
+      this.logger(['Failed to patch ytPlayerUserSettings localStorage', error]);
     }
-  },
+  }
 
-  applyLanguage: function (lang, audioTracks, context, langId) {
-    _audioSelector.logger(
+  applyLanguage(lang, audioTracks, context, langId) {
+    this.logger(
       `Applying audio language: ${lang} for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
     );
-    // patch yt-player-user-settings localStorage
-    _audioSelector.patchYTPlayerUserSettingsLocalStorage(langId);
+    this.patchYTPlayerUserSettingsLocalStorage(langId);
     // set the audio track as default
     // audioTracks.forEach((audioTrackOption) => {
     //   if (audioTrackOption.audioTrack.displayName === lang) {
@@ -117,34 +123,33 @@ const _audioSelector = {
     //     audioTrackOption.audioTrack.audioIsDefault = false;
     //   }
     // });
-    _audioSelector.notificationLangSpan.textContent = lang;
-    _audioSelector.notificationDialog.show();
-    _audioSelector.notificationTimeout = setTimeout(() => {
-      _audioSelector.notificationDialog.close();
+    this.notificationLangSpan.textContent = lang;
+    this.notificationDialog.show();
+    this.notificationTimeout = setTimeout(() => {
+      this.notificationDialog.close();
     }, 2500);
-  },
+  }
 
-  selectAudioTrack: function (audioTracks, context) {
-    //return; // temporary disable
+  selectAudioTrack(audioTracks, context) {
     // yt will lauch the player with the first audio track set as default
     // we need to select the audio track based on the preferred languages
-    const preferredLanguages = _audioSelector.preferredLanguages;
+    const preferredLanguages = this.preferredLanguages;
     if (preferredLanguages === undefined) {
-      _audioSelector.logger('No preferred languages found');
+      this.logger('No preferred languages found');
       return;
     }
 
     const originalAudioTrackLang = audioTracks.find((e) => {
       let result = e.audioTrack?.id.includes('.4');
       if (result) {
-        // e.g "en.4" or "en-GB.4"
-        _audioSelector.logger(['Original audio track found by id magic number (4)', e.audioTrack.id]);
+        // e.g "en.4" or "en-US.4"
+        this.logger(['Original audio track found by id magic number (4)', e.audioTrack.id]);
       }
       return result;
     });
 
     if (originalAudioTrackLang === undefined) {
-      _audioSelector.logger('No original audio track found');
+      this.logger('No original audio track found');
       return;
     }
 
@@ -155,10 +160,10 @@ const _audioSelector = {
       const langCode = audioTrackOption.audioTrack.id.split(/[-\.]/)[0];
       // original track is a preferred language, select it. - Strategy 1
       if (preferredLanguages.includes(langCode) && originalAudioTrackLang.audioTrack.displayName === lang) {
-        _audioSelector.logger(
+        this.logger(
           `Strategy 1 (matched original) - Selecting ${lang} audio track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
         );
-        _audioSelector.applyLanguage(lang, audioTracks, context, audioTrackOption.audioTrack.id);
+        this.applyLanguage(lang, audioTracks, context, audioTrackOption.audioTrack.id);
         return;
       }
       // original track is not a preferred language, select the first preferred language. - Strategy 2
@@ -168,74 +173,69 @@ const _audioSelector = {
       }
     }
 
-    // sort the matched languages by the order of the preferred languages
     matchedLang.sort((a, b) => preferredLanguages.indexOf(a.lang) - preferredLanguages.indexOf(b.lang));
-    _audioSelector.logger(['Matched Languages', matchedLang]);
+    this.logger(['Matched Languages', matchedLang]);
 
     // select the first matched preferred language
     if (matchedLang.length > 0) {
       const firstMatchedLang = matchedLang[0];
-      _audioSelector.logger(
-        `Strategy 2 (first match) - Selecting ${firstMatchedLang.lang} Audio Track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
+      this.logger(
+        `Strategy 2 (first match) - Selecting ${firstMatchedLang.audioTrack.displayName} Audio Track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
       );
-      _audioSelector.applyLanguage(
-        firstMatchedLang.audioTrack.displayName,
-        audioTracks,
-        context,
-        firstMatchedLang.audioTrack.id
-      );
+      this.applyLanguage(firstMatchedLang.audioTrack.displayName, audioTracks, context, firstMatchedLang.audioTrack.id);
       return;
     }
 
     // no preferred language found, select the original track - Strategy 3
     if (!matchedLang.length && originalAudioTrackLang) {
-      _audioSelector.logger(
+      this.logger(
         `Strategy 3 (original) - Selecting ${originalAudioTrackLang.audioTrack.displayName} Audio Track for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
       );
-      _audioSelector.applyLanguage(
+      this.applyLanguage(
         originalAudioTrackLang.audioTrack.displayName,
         audioTracks,
         context,
         originalAudioTrackLang.audioTrack.id
       );
     }
-  },
+  }
 
-  updateData: function (data) {
-    _audioSelector.preferredLanguages = data.selectedLanguages;
-    _audioSelector.enabled = data.enabled;
-    _audioSelector.logEnv = data.logEnv;
-  },
+  updateData(data) {
+    this.preferredLanguages = data.selectedLanguages;
+    this.enabled = data.enabled;
+    this.logEnv = data.logEnv;
+  }
 
-  reconnectPort: function () {
-    clearInterval(_audioSelector.heartbeatInterval);
+  reconnectPort() {
+    clearInterval(this.heartbeatInterval);
     try {
-      _audioSelector.port = chrome.runtime.connect(_audioSelector.extensionId);
-      _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
-      _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
-      _audioSelector.heartbeatInterval = setInterval(_audioSelector.heartbeatFunction, 5000);
-      _audioSelector.logger('AudioSelector Extension Port reconnected');
+      this.port = chrome.runtime.connect(this.extensionId);
+      this.port.onMessage.addListener(this.messageHandler.bind(this));
+      this.port.onDisconnect.addListener(this.disconnectHandler.bind(this));
+      this.heartbeatInterval = setInterval(this.heartbeatFunction.bind(this), 5000);
+      this.logger('AudioSelector Extension Port reconnected');
     } catch (error) {
       setTimeout(() => {
-        _audioSelector.reconnectPort();
+        this.reconnectPort();
       }, 1000);
     }
-  },
+  }
 
-  messageHandler: function (message) {
-    if (message.type === _audioSelector.RESPONSES.PREFERRED_LANGUAGES_DATA) {
-      _audioSelector.logger(['Received preferred languages update', message.data]);
-      _audioSelector.updateData(message.data);
+  messageHandler(message) {
+    if (message.type === this.RESPONSES.PREFERRED_LANGUAGES_DATA) {
+      this.logger(['Received preferred languages update', message.data]);
+      this.updateData(message.data);
     }
-  },
-  disconnectHandler: function () {
-    _audioSelector.logger('AudioSelector Extension Port disconnected');
-    // try to reconnect to the background script
-    clearInterval(_audioSelector.heartbeat);
-    setTimeout(_audioSelector.reconnectPort, 1000);
-  },
+  }
 
-  playerResponseHandler: function (fetchPromise) {
+  disconnectHandler() {
+    this.logger('AudioSelector Extension Port disconnected');
+    // try to reconnect to the background script
+    clearInterval(this.heartbeat);
+    setTimeout(this.reconnectPort.bind(this), 1000);
+  }
+
+  playerResponseHandler(fetchPromise) {
     return fetchPromise.then((responseBefore) => {
       const response = responseBefore.clone();
       return response
@@ -247,8 +247,8 @@ const _audioSelector = {
             const audioTracks = responseContext.streamingData.adaptiveFormats.filter((format) =>
               format.mimeType.includes('audio')
             );
-            _audioSelector.logger('modifying response');
-            _audioSelector.selectAudioTrack(audioTracks, responseContext);
+            this.logger('modifying response');
+            this.selectAudioTrack(audioTracks, responseContext);
             responseContext.streamingData.adaptiveFormats = audioTracks;
             if (responseContext.playerConfig?.mediaCommonConfig !== undefined) {
               //responseContext.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
@@ -267,18 +267,19 @@ const _audioSelector = {
             type: { value: responseBefore.type },
             url: { value: responseBefore.url },
           });
-          _audioSelector.logger(['Response modified', responseBefore, responseAfter]);
-          _audioSelector.logger([responseBefore.headers, responseAfter.headers]);
+          this.logger(['Response modified', responseBefore, responseAfter]);
+          this.logger([responseBefore.headers, responseAfter.headers]);
           return responseBefore; // experimental, only rely on local storage patching
-          return responseAfter;
+          // return responseAfter;
         })
         .catch((reason) => {
-          _audioSelector.logger(['Failed to read response text', reason]);
+          this.logger(['Failed to read response text', reason]);
           return responseBefore;
         });
     });
-  },
-  getSettingValuesResponseHandler: function (fetchPromise) {
+  }
+
+  getSettingValuesResponseHandler(fetchPromise) {
     const videoId =
       new URL(navigator.location.href).searchParams.get('v') ||
       new URL(navigator.location.href).pathname.split('/').pop();
@@ -287,20 +288,18 @@ const _audioSelector = {
       return response
         .json()
         .catch((error) => {
-          _audioSelector.logger(['Failed to parse JSON', error]);
+          this.logger(['Failed to parse JSON', error]);
           return responseBefore;
         })
         .then((jsonBefore) => {
           let jsonAfter = jsonBefore;
           if (jsonBefore?.settingValues) {
-            _audioSelector.logger('modifying get_setting_values response');
-            // patch the audio language setting value to the preferred language
+            this.logger('modifying get_setting_values response');
             if (Array.isArray(jsonAfter.settingValues)) {
               for (const setting of jsonAfter.settingValues) {
                 if (setting.key === '483') {
                   setting.value = {
-                    stringValue:
-                      _audioSelector.videoLanguageCache[videoId] || _audioSelector.preferredLanguages[0] || 'en.4',
+                    stringValue: this.videoLanguageCache[videoId] || this.preferredLanguages[0] || 'en.4',
                   };
                 }
               }
@@ -317,36 +316,31 @@ const _audioSelector = {
             type: { value: responseBefore.type },
             url: { value: responseBefore.url },
           });
-          _audioSelector.logger(['Response modified', responseBefore, responseAfter]);
+          this.logger(['Response modified', responseBefore, responseAfter]);
           return responseAfter;
         })
         .catch((reason) => {
-          _audioSelector.logger(['Failed to read get_setting_values response', reason]);
+          this.logger(['Failed to read get_setting_values response', reason]);
           return responseBefore;
         });
     });
-  },
+  }
 
-  responseModifyHandler: {
-    '/youtubei/v1/player': _audioSelector.playerResponseHandler,
-    '/youtubei/v1/account/get_setting_values': _audioSelector.getSettingValuesResponseHandler,
-  },
-
-  getResponseModifyHandler: function (fetchArg0) {
+  getResponseModifyHandler(fetchArg0) {
     if (typeof fetchArg0 === 'string') {
       const url = new URL(fetchArg0);
       const path = url.pathname;
-      return _audioSelector.responseModifyHandler[path] || null;
+      return this.responseModifyHandler[path] || null;
     }
     if (fetchArg0.url) {
       const url = new URL(fetchArg0.url);
       const path = url.pathname;
-      return _audioSelector.responseModifyHandler[path] || null;
+      return this.responseModifyHandler[path] || null;
     }
     return null;
-  },
+  }
 
-  init: function () {
+  init() {
     const escapeHTMLPolicy = trustedTypes.createPolicy('myEscapePolicy', {
       createHTML: (string) => string,
     });
@@ -362,16 +356,16 @@ const _audioSelector = {
     tmp.innerHTML = notificationDialogHTML;
     const notificationDialog = tmp.querySelector('#audioSelectorNotificationDialog');
 
-    _audioSelector.notificationDialog = notificationDialog;
-    _audioSelector.notificationLangSpan = notificationDialog.querySelector('#audioSelectorNotificationLang');
+    this.notificationDialog = notificationDialog;
+    this.notificationLangSpan = notificationDialog.querySelector('#audioSelectorNotificationLang');
 
-    function appendNotificationDialog() {
+    const appendNotificationDialog = () => {
       if (document.body) {
         document.body.appendChild(notificationDialog);
         return true;
       }
       return false;
-    }
+    };
 
     setTimeout(async () => {
       let appended = appendNotificationDialog();
@@ -387,41 +381,31 @@ const _audioSelector = {
       });
       // fix for the first notification.
       // reset the notificationTimeout, as the first one is shown delayed, due to the dialog not being appended to the DOM
-      _audioSelector.initialNotification &&
-        clearTimeout(_audioSelector.notificationTimeout) &&
-        notificationDialog.show();
-      _audioSelector.notificationTimeout = setTimeout(() => {
+      this.initialNotification && clearTimeout(this.notificationTimeout) && notificationDialog.show();
+      this.notificationTimeout = setTimeout(() => {
         notificationDialog.close();
       }, 2500);
     }, 0);
 
-    setInterval(_audioSelector.heartbeatFunction, 5000);
+    setInterval(this.heartbeatFunction.bind(this), 5000);
 
     // requires externally_connectable in manifest --> documentation https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage
     // use sendmessage to request preferred languages from the extension once for the page initialization
-    chrome.runtime.sendMessage(
-      _audioSelector.extensionId,
-      { type: this.REQUESTS.PREFERRED_LANGUAGES_REQUEST },
-      (response) => {
-        _audioSelector.logger(['Received preferred languages', response.data]);
-        _audioSelector.updateData(response.data);
-      }
-    );
-    _audioSelector.port.onMessage.addListener(_audioSelector.messageHandler);
-    _audioSelector.port.onDisconnect.addListener(_audioSelector.disconnectHandler);
+    chrome.runtime.sendMessage(this.extensionId, { type: this.REQUESTS.PREFERRED_LANGUAGES_REQUEST }, (response) => {
+      this.logger(['Received preferred languages', response.data]);
+      this.updateData(response.data);
+    });
 
-    // hook ytInitialPlayerResponse to catch "default audio track" from doc response
     Object.defineProperty(window, 'ytInitialPlayerResponse', {
-      set: function (obj) {
+      set: (obj) => {
         if (
-          _audioSelector.enabled === true &&
-          // check if the player has multiple audio tracks
+          this.enabled === true &&
           obj.streamingData?.adaptiveFormats?.some((format) => format.audioTrack?.audioIsDefault === true)
         ) {
-          _audioSelector.logger('applying audio language fix');
-          _audioSelector.initialNotification = true;
+          this.logger('applying audio language fix');
+          this.initialNotification = true;
           const audioTracks = obj.streamingData.adaptiveFormats.filter((format) => format.audioTrack !== undefined);
-          _audioSelector.selectAudioTrack(audioTracks, obj);
+          this.selectAudioTrack(audioTracks, obj);
           if (obj.playerConfig?.mediaCommonConfig !== undefined) {
             //obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
           }
@@ -431,33 +415,33 @@ const _audioSelector = {
       get: function () {
         return this._hooked_ytInitialPlayerResponse;
       },
-    }),
-      // UBO fetch hook -- credits to Raymond Hill
+    });
+    // UBO fetch hook -- credits to Raymond Hill
 
-      (window.fetch = new Proxy(window.fetch, {
-        apply: function (target, thisArg, args) {
-          try {
-            const fetchPromise = Reflect.apply(target, thisArg, args);
-            if (_audioSelector.enabled === false) {
-              return fetchPromise;
-            }
-            const responseModifyHandler = _audioSelector.getResponseModifyHandler(args[0]);
-            if (responseModifyHandler === null) {
-              return fetchPromise;
-            }
-
-            _audioSelector.logger(['fetching', args[0], fetchPromise]);
-            //return fetchPromise;
-            return responseModifyHandler(fetchPromise).catch((reason) => {
-              _audioSelector.logger(['Failed to fetch', reason]);
-              return fetchPromise;
-            });
-          } catch (error) {
-            _audioSelector.logger(['generic error', error]);
+    window.fetch = new Proxy(window.fetch, {
+      apply: (target, thisArg, args) => {
+        try {
+          const fetchPromise = Reflect.apply(target, thisArg, args);
+          if (this.enabled === false) {
+            return fetchPromise;
           }
-        },
-      }));
-  },
-};
+          const responseModifyHandler = this.getResponseModifyHandler(args[0]);
+          if (responseModifyHandler === null) {
+            return fetchPromise;
+          }
 
+          this.logger(['fetching', args[0], fetchPromise]);
+          return responseModifyHandler(fetchPromise).catch((reason) => {
+            this.logger(['Failed to fetch', reason]);
+            return fetchPromise;
+          });
+        } catch (error) {
+          this.logger(['generic error', error]);
+        }
+      },
+    });
+  }
+}
+
+const _audioSelector = new AudioSelector();
 _audioSelector.init();
