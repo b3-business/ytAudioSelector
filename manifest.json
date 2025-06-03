@@ -14,12 +14,6 @@
       "css": ["audioSelector.css"],
       "run_at": "document_start",
       "world": "MAIN"
-    },
-    {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["unused_legacy/hookStorageSetter.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
     }
   ],
   "options_page": "options.html",

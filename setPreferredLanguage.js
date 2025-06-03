@@ -105,6 +105,7 @@ class AudioSelector {
         }, time);
       };
       forcePatch(1000);
+      forcePatch(2000);
     } catch (error) {
       this.logger(['Failed to patch ytPlayerUserSettings localStorage', error]);
     }
@@ -114,6 +115,10 @@ class AudioSelector {
     this.logger(
       `Applying audio language: ${lang} for video ${context.videoDetails.title} (${context.videoDetails.videoId})`
     );
+    this.videoLanguageCache[context.videoDetails.videoId] = {
+      lang: lang,
+      langId: langId,
+    };
     this.patchYTPlayerUserSettingsLocalStorage(langId);
     // set the audio track as default
     // audioTracks.forEach((audioTrackOption) => {
@@ -280,9 +285,7 @@ class AudioSelector {
   }
 
   getSettingValuesResponseHandler(fetchPromise) {
-    const videoId =
-      new URL(navigator.location.href).searchParams.get('v') ||
-      new URL(navigator.location.href).pathname.split('/').pop();
+    const videoId = new URL(location.href).searchParams.get('v') || new URL(location.href).pathname.split('/').pop();
     return fetchPromise.then((responseBefore) => {
       const response = responseBefore.clone();
       return response
@@ -328,12 +331,14 @@ class AudioSelector {
 
   getResponseModifyHandler(fetchArg0) {
     if (typeof fetchArg0 === 'string') {
-      const url = new URL(fetchArg0);
+      this.logger(['fetch called with string', fetchArg0]);
+      const url = new URL(fetchArg0, window.location.href);
       const path = url.pathname;
       return this.responseModifyHandler[path] || null;
     }
     if (fetchArg0.url) {
-      const url = new URL(fetchArg0.url);
+      this.logger(['fetch called with object', fetchArg0]);
+      const url = new URL(fetchArg0.url, window.location.href);
       const path = url.pathname;
       return this.responseModifyHandler[path] || null;
     }
@@ -398,30 +403,34 @@ class AudioSelector {
 
     Object.defineProperty(window, 'ytInitialPlayerResponse', {
       set: (obj) => {
-        if (
-          this.enabled === true &&
-          obj.streamingData?.adaptiveFormats?.some((format) => format.audioTrack?.audioIsDefault === true)
-        ) {
-          this.logger('applying audio language fix');
-          this.initialNotification = true;
-          const audioTracks = obj.streamingData.adaptiveFormats.filter((format) => format.audioTrack !== undefined);
-          this.selectAudioTrack(audioTracks, obj);
-          if (obj.playerConfig?.mediaCommonConfig !== undefined) {
-            //obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+        try {
+          if (
+            _audioSelector.enabled === true &&
+            obj.streamingData?.adaptiveFormats?.some((format) => format.audioTrack?.audioIsDefault === true)
+          ) {
+            _audioSelector.logger('applying audio language fix');
+            _audioSelector.initialNotification = true;
+            const audioTracks = obj.streamingData.adaptiveFormats.filter((format) => format.audioTrack !== undefined);
+            _audioSelector.selectAudioTrack(audioTracks, obj);
+            if (obj.playerConfig?.mediaCommonConfig !== undefined) {
+              //obj.playerConfig.mediaCommonConfig.useServerDrivenAbr = false;
+            }
           }
+        } catch (error) {
+          _audioSelector.logger(['Error in ytInitialPlayerResponse setter', error]);
         }
-        this._hooked_ytInitialPlayerResponse = obj;
+        window._hooked_ytInitialPlayerResponse = obj;
       },
       get: function () {
-        return this._hooked_ytInitialPlayerResponse;
+        return window._hooked_ytInitialPlayerResponse;
       },
     });
-    // UBO fetch hook -- credits to Raymond Hill
 
+    // UBO fetch hook -- credits to Raymond Hill
     window.fetch = new Proxy(window.fetch, {
       apply: (target, thisArg, args) => {
+        const fetchPromise = Reflect.apply(target, thisArg, args);
         try {
-          const fetchPromise = Reflect.apply(target, thisArg, args);
           if (this.enabled === false) {
             return fetchPromise;
           }
@@ -429,15 +438,47 @@ class AudioSelector {
           if (responseModifyHandler === null) {
             return fetchPromise;
           }
-
-          this.logger(['fetching', args[0], fetchPromise]);
+          const url = args[0] instanceof Request ? args[0].url : args[0];
+          this.logger(['fetching', url, fetchPromise]);
           return responseModifyHandler(fetchPromise).catch((reason) => {
             this.logger(['Failed to fetch', reason]);
             return fetchPromise;
           });
         } catch (error) {
           this.logger(['generic error', error]);
+          return fetchPromise;
         }
+      },
+    });
+
+    // also hook the XMLHttpRequest
+    window.XMLHttpRequest = new Proxy(window.XMLHttpRequest, {
+      construct: (target, args) => {
+        console.log('XHR constructor called')
+        const xhr = Reflect.construct(target, args);
+        const xhrProxy = new Proxy(xhr, {
+          set: (target, prop, value) => {
+            console.log('XHR property set', prop, value, target);
+            if (prop === 'onload') {
+              target._hooked_onload = value;
+            }
+            target[prop] = value;
+            return true;
+          },
+          get: (target, prop) => {
+            console.log('XHR property get', prop, target);
+            if (prop === 'onload') {
+              return target._hooked_onload;
+            }
+            return target[prop];
+          },
+          apply: (target, thisArg, args) => {
+            console.log('target', target, target);
+            return Reflect.apply(target, thisArg, args);
+          },
+        });
+
+        return xhrProxy;
       },
     });
   }
