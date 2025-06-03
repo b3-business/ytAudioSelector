@@ -22,7 +22,7 @@ window._yt_player = new Proxy(
     set: function (target, property, value) {
       // player constructor has 4 arguments, the document has inline script referencing this constructor
       if (typeof value === "function" && value.length === 4) {
-        console.log("potential Youtube Player constructor hooked", value);
+        //console.log("potential Youtube Player constructor hooked", value);
         target[property] = new Proxy(value, {
           construct: function (target, args) {
             const instance = new target(...args);
