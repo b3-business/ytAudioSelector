@@ -95,17 +95,7 @@ class AudioSelector {
         expiration: Date.now() + 1000 * 60 * 60 * 24 * 30, // 1 month
       });
       // force overriding multiple times, as youtube seems to read and write this localStorage item multiple times
-      const forcePatch = (time) => {
-        setTimeout(() => {
-          this.setLocalStorage('yt-player-user-settings', {
-            creation: Date.now(),
-            data: JSON.stringify(userSettings),
-            expiration: Date.now() + 1000 * 60 * 60 * 24 * 30, // 1 month
-          });
-        }, time);
-      };
-      forcePatch(1000);
-      forcePatch(2000);
+      // multiple force patching no longer required, as the xmlHttpRequest is patched to modify the response directly
     } catch (error) {
       this.logger(['Failed to patch ytPlayerUserSettings localStorage', error]);
     }
@@ -284,49 +274,56 @@ class AudioSelector {
     });
   }
 
-  getSettingValuesResponseHandler(fetchPromise) {
+  getSettingValuesResponseHandler(responseString) {
     const videoId = new URL(location.href).searchParams.get('v') || new URL(location.href).pathname.split('/').pop();
-    return fetchPromise.then((responseBefore) => {
-      const response = responseBefore.clone();
-      return response
-        .json()
-        .catch((error) => {
-          this.logger(['Failed to parse JSON', error]);
-          return responseBefore;
-        })
-        .then((jsonBefore) => {
-          let jsonAfter = jsonBefore;
-          if (jsonBefore?.settingValues) {
-            this.logger('modifying get_setting_values response');
-            if (Array.isArray(jsonAfter.settingValues)) {
-              for (const setting of jsonAfter.settingValues) {
-                if (setting.key === '483') {
-                  setting.value = {
-                    stringValue: this.videoLanguageCache[videoId] || this.preferredLanguages[0] || 'en.4',
-                  };
-                }
-              }
+    let jsonBefore;
+    try {
+      jsonBefore = JSON.parse(responseString);
+    } catch (error) {
+      this.logger(['Failed to parse JSON string', error, responseString]);
+      return responseString; // Return original string if parsing fails
+    }
+
+    let jsonAfter = JSON.parse(JSON.stringify(jsonBefore)); // Deep clone to avoid modifying the original object if it's passed by reference elsewhere
+
+    if (jsonAfter?.settingValues) {
+      this.logger('modifying get_setting_values response (synchronous)');
+      if (Array.isArray(jsonAfter.settingValues)) {
+        for (const setting of jsonAfter.settingValues) {
+          if (setting.key === '483') {
+            const preferredLangId =
+              this.preferredLanguages && this.preferredLanguages.length > 0
+                ? this.preferredLanguages[0] // Assuming preferredLanguages stores full IDs like "en.4" or just codes like "en"
+                : 'en.4'; // Default
+
+            let langIdToSet = preferredLangId;
+            if (!preferredLangId.includes('.')) {
+              // Basic check if it's a code vs full ID
+              langIdToSet = preferredLangId + '.4';
             }
+
+            setting.value = {
+              // Use videoLanguageCache if available, otherwise use the first preferred language, or default
+              stringValue: this.videoLanguageCache[videoId]?.langId || preferredLangId,
+            };
+            this.logger([`Patched setting '483' to stringValue: ${setting.value.stringValue}`]);
           }
-          const responseAfter = new Response(JSON.stringify(jsonAfter), {
-            status: responseBefore.status,
-            statusText: responseBefore.statusText,
-            headers: responseBefore.headers,
-          });
-          Object.defineProperties(responseAfter, {
-            ok: { value: responseBefore.ok },
-            redirected: { value: responseBefore.redirected },
-            type: { value: responseBefore.type },
-            url: { value: responseBefore.url },
-          });
-          this.logger(['Response modified', responseBefore, responseAfter]);
-          return responseAfter;
-        })
-        .catch((reason) => {
-          this.logger(['Failed to read get_setting_values response', reason]);
-          return responseBefore;
-        });
-    });
+        }
+      }
+    } else {
+      this.logger(['No settingValues found in the provided JSON string', jsonBefore]);
+      // Return original string if structure is not as expected, or handle as needed
+      return responseString;
+    }
+
+    try {
+      const modifiedString = JSON.stringify(jsonAfter);
+      this.logger(['Response modified (synchronous)', responseString, modifiedString]);
+      return modifiedString;
+    } catch (error) {
+      this.logger(['Failed to stringify modified JSON object', error, jsonAfter]);
+      return responseString; // Return original string if stringifying fails
+    }
   }
 
   getResponseModifyHandler(fetchArg0) {
@@ -451,36 +448,83 @@ class AudioSelector {
       },
     });
 
-    // also hook the XMLHttpRequest
-    window.XMLHttpRequest = new Proxy(window.XMLHttpRequest, {
-      construct: (target, args) => {
-        console.log('XHR constructor called')
-        const xhr = Reflect.construct(target, args);
-        const xhrProxy = new Proxy(xhr, {
-          set: (target, prop, value) => {
-            console.log('XHR property set', prop, value, target);
-            if (prop === 'onload') {
-              target._hooked_onload = value;
+    // --- Intercept XMLHttpRequest constructor to modify response ---
+    (function () {
+      try {
+        window.XMLHttpRequest = new Proxy(window.XMLHttpRequest, {
+          construct(target, args) {
+            if (_audioSelector.enabled === false) {
+              return new target(...args);
             }
-            target[prop] = value;
-            return true;
-          },
-          get: (target, prop) => {
-            console.log('XHR property get', prop, target);
-            if (prop === 'onload') {
-              return target._hooked_onload;
-            }
-            return target[prop];
-          },
-          apply: (target, thisArg, args) => {
-            console.log('target', target, target);
-            return Reflect.apply(target, thisArg, args);
+            _audioSelector.logger('Intercepting XMLHttpRequest constructor');
+            const xhr = new target(...args);
+            const onloadHandler = [];
+            let intercept = false;
+
+            const xhrProxy = new Proxy(xhr, {
+              get(target, prop) {
+                if (target[prop] && typeof target[prop] !== 'function') {
+                  return target[prop];
+                }
+                if (prop === 'open') {
+                  return function (...args) {
+                    if (args[1] && args[1].includes('/youtubei/v1/account/get_setting_values')) {
+                      intercept = true;
+                      xhr.addEventListener('load', function () {
+                        _audioSelector.logger('Intercepted XMLHttpRequest response');
+                        const final = () => {
+                          // we dont care about error handling here, the caller should handle it
+                          onloadHandler.forEach((handler) => handler.call(this));
+                        };
+
+                        const responseModifyHandler = _audioSelector.getResponseModifyHandler(args[1]);
+                        // this.responseText and this.response are not writable, so we use Object.defineProperty
+                        if (!responseModifyHandler) {
+                          final();
+                          return;
+                        }
+                        Object.defineProperty(this, 'responseText', {
+                          value: responseModifyHandler(this.responseText),
+                        });
+                        Object.defineProperty(this, 'response', {
+                          value: responseModifyHandler(this.response),
+                        });
+                        _audioSelector.logger(['Modified get_setting_values response', this.responseText, this.response]);
+                        final();
+                        return;
+                      });
+                    }
+                    return target[prop].apply(xhr, args);
+                  };
+                }
+                if (prop === 'addEventListener') {
+                  return function (...args) {
+                    if (args[0] === 'load' && intercept) {
+                      onloadHandler.push(args[1]);
+                      return;
+                    }
+                  };
+                }
+                return target[prop].bind(xhr);
+              },
+              set(target, prop, value) {
+                if (prop === 'onload' && intercept) {
+                  onloadHandler.push(value);
+                  return true;
+                }
+
+                target[prop] = value;
+                return true;
+              },
+            });
+
+            return xhrProxy;
           },
         });
-
-        return xhrProxy;
-      },
-    });
+      } catch (e) {
+        console.error('Error intercepting XMLHttpRequest:', e);
+      }
+    })();
   }
 }
 
