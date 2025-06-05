@@ -226,7 +226,7 @@ class AudioSelector {
   disconnectHandler() {
     this.logger('AudioSelector Extension Port disconnected');
     // try to reconnect to the background script
-    clearInterval(this.heartbeat);
+    clearInterval(this.heartbeatInterval);
     setTimeout(this.reconnectPort.bind(this), 1000);
   }
 
