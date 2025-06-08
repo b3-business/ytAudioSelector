@@ -119,10 +119,14 @@ class AudioSelector {
     //   }
     // });
     this.notificationLangSpan.textContent = lang;
-    this.notificationDialog.show();
-    this.notificationTimeout = setTimeout(() => {
-      this.notificationDialog.close();
-    }, 2500);
+    const url = new URL(location.href);
+    if (url.pathname.includes('/watch') || url.pathname.includes('/shorts')) {
+      // only show notification for watch and shorts pages, as the notification scrolls into view, which is annoying on other pages
+      this.notificationDialog.show();
+      this.notificationTimeout = setTimeout(() => {
+        this.notificationDialog.close();
+      }, 2500);
+    }
   }
 
   selectAudioTrack(audioTracks, context) {
