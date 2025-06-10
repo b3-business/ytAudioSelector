@@ -507,6 +507,7 @@ class AudioSelector {
                       onloadHandler.push(args[1]);
                       return;
                     }
+                    return target[prop].apply(xhr, args);
                   };
                 }
                 return target[prop].bind(xhr);

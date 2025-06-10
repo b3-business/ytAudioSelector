@@ -1,52 +1,95 @@
 console.log('\n\n\n\n\n');
 
-// --- Intercept only XMLHttpRequest constructor ---
+function log(message) {
+  console.log(`[AudioSelector] ${message}`);
+}
+
+const _audioSelector = {
+  enabled: true,
+  logger: function (message) {
+    if (this.enabled) {
+      log(message);
+    }
+  }
+};
+// --- Intercept XMLHttpRequest constructor to modify response ---
 (function () {
   try {
     window.XMLHttpRequest = new Proxy(window.XMLHttpRequest, {
       construct(target, args) {
+        if (_audioSelector.enabled === false) {
+          return new target(...args);
+        }
+        _audioSelector.logger('Intercepting XMLHttpRequest constructor');
         const xhr = new target(...args);
         const onloadHandler = [];
         let intercept = false;
+        let targetUrl = null;
 
         const xhrProxy = new Proxy(xhr, {
           get(target, prop) {
-            if (target[prop] && typeof target[prop] === 'function') {
-              // Intercept methods like open, send, onload, etc.
-              console.log(`Intercepted method call: ${prop}`);
+            log(`Accessing XMLHttpRequest property: ${prop} of ${targetUrl}`);
+            if (target[prop] && typeof target[prop] !== 'function') {
+              log(`Property ${prop} is not a function, returning value`);
+              return target[prop];
+            }
+            if (prop === 'open') {
               return function (...args) {
-                if (prop === 'open') {
-                  // check url for path "todos/1"
-                  if (args[1] && args[1].includes('todos/1')) {
-                    intercept = true;
-                    xhr.addEventListener('load', function () {
-                      // this.responseText and this.response are not writable, so we use Object.defineProperty
-                      Object.defineProperty(this, 'responseText', {
-                        value: 'Intercepted response text',
-                      });
-                      Object.defineProperty(this, 'response', {
-                        value: 'Intercepted response object',
-                      });
-                      // we dont care about error handling here, the executor should handle it
+                log(`open method called with args: ${args}`);
+                targetUrl = args[1];
+                if (args[1] && args[1].includes('/todos/1')) {
+                  _audioSelector.logger('Intercepting XMLHttpRequest for URL: ' + args[1]);
+                  intercept = true;
+                  xhr.addEventListener('load', function () {
+                    //_audioSelector.logger('Intercepted XMLHttpRequest response');
+                    const final = () => {
+                      // we dont care about error handling here, the caller should handle it
+                      _audioSelector.logger('Executing onload handlers');
                       onloadHandler.forEach((handler) => handler.call(this));
+                    };
+
+                    const responseModifyHandler = (response) => {
+                      return response;
+                    };
+                    // this.responseText and this.response are not writable, so we use Object.defineProperty
+                    if (!responseModifyHandler) {
+                      _audioSelector.logger('No responseModifyHandler provided, skipping modification');
+                      final();
+                      return;
+                    }
+                    Object.defineProperty(this, 'responseText', {
+                      value: responseModifyHandler(this.responseText),
                     });
-                  }
+                    Object.defineProperty(this, 'response', {
+                      value: responseModifyHandler(this.response),
+                    });
+                    _audioSelector.logger('Modified XMLHttpRequest response');
+                    final();
+                    return;
+                  });
                 }
-                if (prop === 'addEventListener' && args[0] === 'load' && intercept) {
+                log(`calling original open with URL: ${args[1]}`);
+                return target[prop].apply(xhr, args);
+              };
+            }
+            if (prop === 'addEventListener') {
+              return function (...args) {
+                if (args[0] === 'load' && intercept) {
                   onloadHandler.push(args[1]);
                   return;
                 }
                 return target[prop].apply(xhr, args);
               };
             }
-            return target[prop];
+            return target[prop].bind(xhr);
           },
           set(target, prop, value) {
             if (prop === 'onload' && intercept) {
+              log(`intercepting onload handler for ${targetUrl}`);
               onloadHandler.push(value);
               return true;
             }
-
+            log(`Setting XMLHttpRequest property: ${prop} to ${value} of ${targetUrl}`);
             target[prop] = value;
             return true;
           },
