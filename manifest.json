@@ -1,17 +1,27 @@
 {
   "manifest_version": 3,
   "name": "YouTube Audio Selector",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Automatically select a predefined audio track language for YouTube videos. Works on Shorts, even those without audio selection.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "externally_connectable": {
-    "matches": ["https://www.youtube.com/*"]
+    "matches": [
+      "https://www.youtube.com/*"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["setPreferredLanguage.js"],
-      "css": ["audioSelector.css"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "setPreferredLanguage.js"
+      ],
+      "css": [
+        "audioSelector.css"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     }

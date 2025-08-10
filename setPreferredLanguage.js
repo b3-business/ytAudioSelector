@@ -1,6 +1,7 @@
 const _audioSelector_ExtensionId = 'oekkkogcccckecdkgnlnbblcfiafehaj';
 
 // send message to extention to wake it up. its potentially inactive by chrome
+
 chrome.runtime.sendMessage(_audioSelector_ExtensionId, { type: 'ping' }, (response) => {
   if (response.type === 'pong') {
     console.log('Background script is active');
@@ -167,7 +168,7 @@ class AudioSelector {
       }
       // original track is not a preferred language, select the first preferred language. - Strategy 2
       // remember matched language
-      if (preferredLanguages.includes(lang)) {
+      if (preferredLanguages.includes(langCode)) {
         matchedLang.push(audioTrackOption);
       }
     }
