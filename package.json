@@ -10,7 +10,7 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "authors": "Bloodiko",
+  "authors": "codikyo",
   "description": "Automatically select a predefined audio track on YouTube videos, if audio selection is available.",
   "private": true,
   "scripts": {
